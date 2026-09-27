@@ -1,0 +1,22 @@
+# Configuración privada: nunca debe llegar a GitHub.
+/config/local.php
+/config/backup.local.env
+/config/ticket.local.php
+/.env
+/.env.local
+
+# Datos operativos y respaldos; se conservan en el servidor, no en el repositorio.
+/backups/
+/logs/
+/RESPALDO UBUNTU/
+/tienda_nuvi.backup.sql
+/dist/
+
+# Dependencias y artefactos locales/históricos.
+/recursos/
+/releases/
+/documentacion/historico/backup_innecesarios_2026-04-22/
+
+# Estado de herramientas y sistema.
+.DS_Store
+Thumbs.db
