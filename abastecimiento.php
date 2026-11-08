@@ -39,7 +39,7 @@ if ($estructuraLista) {
     $res = mysqli_query($conexion, 'SELECT id, nombre, contacto, telefono FROM proveedores WHERE activo = 1 ORDER BY nombre ASC');
     while ($res && ($fila = mysqli_fetch_assoc($res))) $proveedores[] = $fila;
 
-    $res = mysqli_query($conexion, "SELECT id, nombre, codigo_barras, unidad_medida, stock, precio_compra
+    $res = mysqli_query($conexion, "SELECT id, nombre, marca, codigo_barras, unidad_medida, stock, precio_compra
         FROM productos WHERE {$condicionProductoActivo} ORDER BY nombre ASC");
     while ($res && ($fila = mysqli_fetch_assoc($res))) $productos[] = $fila;
 
@@ -101,7 +101,10 @@ if ($estructuraLista) {
 $opcionesProducto = '<option value="">Selecciona un producto…</option>';
 foreach ($productos as $producto) {
     $texto = $producto['nombre'] . ' · Stock: ' . rtrim(rtrim(number_format((float) $producto['stock'], 3, '.', ''), '0'), '.') . ' ' . ($producto['unidad_medida'] ?: 'pza');
-    $opcionesProducto .= '<option value="' . (int) $producto['id'] . '" data-costo="' . htmlspecialchars(number_format((float) $producto['precio_compra'], 4, '.', '')) . '">' . htmlspecialchars($texto) . '</option>';
+    $opcionesProducto .= '<option value="' . (int) $producto['id'] . '" data-costo="' . htmlspecialchars(number_format((float) $producto['precio_compra'], 4, '.', ''), ENT_QUOTES, 'UTF-8')
+        . '" data-codigo="' . htmlspecialchars((string) $producto['codigo_barras'], ENT_QUOTES, 'UTF-8')
+        . '" data-marca="' . htmlspecialchars((string) ($producto['marca'] ?? ''), ENT_QUOTES, 'UTF-8')
+        . '">' . htmlspecialchars($texto, ENT_QUOTES, 'UTF-8') . '</option>';
 }
 ?>
 <!doctype html>
@@ -154,37 +157,6 @@ foreach ($productos as $producto) {
             <?php endif; ?>
         </section>
     <?php else: ?>
-        <section class="tarjeta" style="margin-bottom:18px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;"><div><h2 style="margin-bottom:4px;">📈 Utilidad estimada</h2><p style="margin:0;color:#64748b;font-size:.9rem;">Desde hoy las ventas conservan su costo unitario. El historial anterior se estima con el último costo registrado.</p></div><form method="get"><label style="margin:0 0 4px;">Periodo</label><select name="periodo" onchange="this.form.submit()"><option value="7" <?php echo $periodoUtilidad===7?'selected':''; ?>>7 días</option><option value="30" <?php echo $periodoUtilidad===30?'selected':''; ?>>30 días</option><option value="90" <?php echo $periodoUtilidad===90?'selected':''; ?>>90 días</option></select></form></div>
-            <div class="resumen" style="margin-top:14px;"><div class="kpi"><span>Ventas de productos</span><strong>$<?php echo number_format($utilidad['ventas'],2); ?></strong></div><div class="kpi"><span>Costo de lo vendido</span><strong>$<?php echo number_format($utilidad['costo_ventas'],2); ?></strong></div><div class="kpi"><span>Utilidad bruta</span><strong>$<?php echo number_format($utilidad['utilidad_bruta'],2); ?></strong></div><div class="kpi"><span>Después de merma</span><strong>$<?php echo number_format($utilidad['utilidad_neta'],2); ?></strong></div></div>
-            <div class="scroll" style="margin-top:14px;"><table><thead><tr><th>Categoría</th><th>Ventas</th><th>Costo</th><th>Utilidad</th></tr></thead><tbody><?php if(!$utilidadCategorias): ?><tr><td colspan="4">Aún no hay ventas en el periodo.</td></tr><?php else: foreach($utilidadCategorias as $categoria): ?><tr><td><?php echo htmlspecialchars($categoria['categoria']); ?></td><td>$<?php echo number_format((float)$categoria['ventas'],2); ?></td><td>$<?php echo number_format((float)$categoria['costo'],2); ?></td><td>$<?php echo number_format((float)$categoria['utilidad'],2); ?></td></tr><?php endforeach; endif; ?></tbody></table></div>
-        </section>
-        <section class="resumen">
-            <div class="tarjeta kpi"><span>Compras últimos <?php echo $periodoUtilidad; ?> días</span><strong>$<?php echo number_format((float)$resumen['compras'], 2); ?></strong></div>
-            <div class="tarjeta kpi"><span>Merma al costo · <?php echo $periodoUtilidad; ?> días</span><strong>$<?php echo number_format((float)$resumen['mermas'], 2); ?></strong></div>
-            <div class="tarjeta kpi"><span>Lotes con caducidad registrada</span><strong><?php echo (int)$resumen['lotes']; ?></strong></div>
-        </section>
-
-        <section class="grid" style="margin-top:18px;">
-            <form class="tarjeta" method="post" action="guardar_proveedor.php">
-                <h2>🤝 Nuevo proveedor</h2>
-                <label>Nombre *</label><input name="nombre" maxlength="120" required>
-                <label>Contacto</label><input name="contacto" maxlength="120">
-                <label>Teléfono</label><input name="telefono" maxlength="40">
-                <label>Correo</label><input type="email" name="email" maxlength="150">
-                <label>Notas</label><textarea name="notas" maxlength="500"></textarea>
-                <div class="acciones"><button>Guardar proveedor</button></div>
-            </form>
-
-            <form class="tarjeta" method="post" action="registrar_merma.php">
-                <h2>🗑️ Registrar merma</h2>
-                <label>Producto *</label><select name="id_producto" required><?php echo $opcionesProducto; ?></select>
-                <label>Cantidad a descontar *</label><input type="number" name="cantidad" min="0.001" step="0.001" required>
-                <label>Motivo *</label><textarea name="motivo" maxlength="255" placeholder="Caducado, dañado, derrame, ajuste físico…" required></textarea>
-                <div class="acciones"><button class="danger">Registrar merma</button></div>
-            </form>
-        </section>
-
         <section class="tarjeta" style="margin-top:18px;">
             <h2>🧾 Registrar compra / entrada de mercancía</h2>
             <form method="post" action="registrar_compra.php" id="form-compra">
@@ -193,6 +165,12 @@ foreach ($productos as $producto) {
                     <div><label>Fecha y hora</label><input type="datetime-local" name="fecha_compra" value="<?php echo date('Y-m-d\TH:i'); ?>"></div>
                     <div><label>Folio o factura</label><input name="folio" maxlength="80" placeholder="Opcional"></div>
                 </div>
+                <label for="marca-compra">Filtrar lista por marca / proveedor habitual</label>
+                <select id="marca-compra"><option value="">Todas las marcas</option></select>
+                <small>Este filtro usa la marca registrada en el producto; no cambia el proveedor de la compra.</small>
+                <label for="codigo-compra">Escanear producto</label>
+                <input id="codigo-compra" type="text" autocomplete="off" placeholder="Escanea y pulsa Enter">
+                <p id="mensaje-codigo-compra" role="status"></p>
                 <div id="lineas-compra"></div>
                 <template id="plantilla-linea-compra">
                     <div class="linea-compra">
@@ -207,6 +185,39 @@ foreach ($productos as $producto) {
                 <div class="acciones"><button type="button" class="secundario" id="agregar-linea">＋ Agregar producto</button><button>Guardar compra y actualizar stock</button></div>
                 <label>Notas de compra</label><textarea name="notas" maxlength="500" placeholder="Opcional: condiciones, faltantes, observaciones…"></textarea>
             </form>
+        </section>
+
+        <section class="grid" style="margin-top:18px;">
+            <form class="tarjeta" method="post" action="registrar_merma.php">
+                <h2>🗑️ Registrar merma</h2>
+                <label for="codigo-merma">Escanear código</label>
+                <input id="codigo-merma" type="text" autocomplete="off" placeholder="Escanea y pulsa Enter">
+                <p id="mensaje-codigo-merma" role="status"></p>
+                <label>Producto *</label><select name="id_producto" required><?php echo $opcionesProducto; ?></select>
+                <label>Cantidad a descontar *</label><input type="number" name="cantidad" min="0.001" step="0.001" required>
+                <label>Motivo *</label><textarea name="motivo" maxlength="255" placeholder="Caducado, dañado, derrame, ajuste físico…" required></textarea>
+                <div class="acciones"><button class="danger">Registrar merma</button></div>
+            </form>
+            <form class="tarjeta" method="post" action="guardar_proveedor.php">
+                <h2>🤝 Nuevo proveedor</h2>
+                <label>Nombre *</label><input name="nombre" maxlength="120" required>
+                <label>Contacto</label><input name="contacto" maxlength="120">
+                <label>Teléfono</label><input name="telefono" maxlength="40">
+                <label>Correo</label><input type="email" name="email" maxlength="150">
+                <label>Notas</label><textarea name="notas" maxlength="500"></textarea>
+                <div class="acciones"><button>Guardar proveedor</button></div>
+            </form>
+        </section>
+
+        <section class="tarjeta" style="margin-top:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;"><div><h2 style="margin-bottom:4px;">📈 Utilidad estimada</h2><p style="margin:0;color:#64748b;font-size:.9rem;">Desde hoy las ventas conservan su costo unitario. El historial anterior se estima con el último costo registrado.</p></div><form method="get"><label style="margin:0 0 4px;">Periodo</label><select name="periodo" onchange="this.form.submit()"><option value="7" <?php echo $periodoUtilidad===7?'selected':''; ?>>7 días</option><option value="30" <?php echo $periodoUtilidad===30?'selected':''; ?>>30 días</option><option value="90" <?php echo $periodoUtilidad===90?'selected':''; ?>>90 días</option></select></form></div>
+            <div class="resumen" style="margin-top:14px;"><div class="kpi"><span>Ventas de productos</span><strong>$<?php echo number_format($utilidad['ventas'],2); ?></strong></div><div class="kpi"><span>Costo de lo vendido</span><strong>$<?php echo number_format($utilidad['costo_ventas'],2); ?></strong></div><div class="kpi"><span>Utilidad bruta</span><strong>$<?php echo number_format($utilidad['utilidad_bruta'],2); ?></strong></div><div class="kpi"><span>Después de merma</span><strong>$<?php echo number_format($utilidad['utilidad_neta'],2); ?></strong></div></div>
+            <div class="scroll" style="margin-top:14px;"><table><thead><tr><th>Categoría</th><th>Ventas</th><th>Costo</th><th>Utilidad</th></tr></thead><tbody><?php if(!$utilidadCategorias): ?><tr><td colspan="4">Aún no hay ventas en el periodo.</td></tr><?php else: foreach($utilidadCategorias as $categoria): ?><tr><td><?php echo htmlspecialchars($categoria['categoria']); ?></td><td>$<?php echo number_format((float)$categoria['ventas'],2); ?></td><td>$<?php echo number_format((float)$categoria['costo'],2); ?></td><td>$<?php echo number_format((float)$categoria['utilidad'],2); ?></td></tr><?php endforeach; endif; ?></tbody></table></div>
+        </section>
+        <section class="resumen" style="margin-top:18px;">
+            <div class="tarjeta kpi"><span>Compras últimos <?php echo $periodoUtilidad; ?> días</span><strong>$<?php echo number_format((float)$resumen['compras'], 2); ?></strong></div>
+            <div class="tarjeta kpi"><span>Merma al costo · <?php echo $periodoUtilidad; ?> días</span><strong>$<?php echo number_format((float)$resumen['mermas'], 2); ?></strong></div>
+            <div class="tarjeta kpi"><span>Lotes con caducidad registrada</span><strong><?php echo (int)$resumen['lotes']; ?></strong></div>
         </section>
 
         <section class="grid" style="margin-top:18px;">
@@ -225,6 +236,7 @@ foreach ($productos as $producto) {
         const costo = linea.querySelector('input[name="costo_unitario[]"]');
         selector?.addEventListener('change', () => {
             if (costo && !costo.value) costo.value = selector.selectedOptions[0]?.dataset.costo || '';
+            filtrarMarcas(linea);
         });
         linea.querySelector('.quitar-linea').addEventListener('click', event => {
             if (lineas.children.length <= 1) return;
@@ -234,9 +246,69 @@ foreach ($productos as $producto) {
     const agregar = () => {
         if (!plantilla || !lineas) return;
         const fragmento = plantilla.content.cloneNode(true);
-        prepararLinea(fragmento.querySelector('.linea-compra'));
+        const linea = fragmento.querySelector('.linea-compra');
+        prepararLinea(linea);
         lineas.appendChild(fragmento);
+        filtrarMarcas(linea);
+        return linea;
     };
+    const marca = document.getElementById('marca-compra');
+    const filtrarMarcas = contenedor => {
+        if (!marca || !contenedor) return;
+        contenedor.querySelectorAll('select[name="producto_id[]"] option').forEach(opcion => {
+            opcion.hidden = Boolean(opcion.value && marca.value && (opcion.dataset.marca || '').trim() !== marca.value && !opcion.selected);
+        });
+    };
+    if (plantilla && marca) {
+        const marcas = new Set(Array.from(plantilla.content.querySelectorAll('option[data-marca]'))
+            .map(opcion => opcion.dataset.marca.trim()).filter(Boolean));
+        Array.from(marcas).sort((a, b) => a.localeCompare(b, 'es')).forEach(nombre => {
+            const opcion = document.createElement('option');
+            opcion.value = nombre;
+            opcion.textContent = nombre;
+            marca.append(opcion);
+        });
+        marca.addEventListener('change', () => filtrarMarcas(lineas));
+    }
+    const buscarCodigo = (selector, codigo) => Array.from(selector.options)
+        .find(opcion => opcion.value && opcion.dataset.codigo === codigo);
+    document.getElementById('codigo-compra')?.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        const codigo = event.currentTarget.value.trim();
+        const selectorPlantilla = plantilla.content.querySelector('select');
+        const producto = buscarCodigo(selectorPlantilla, codigo);
+        const mensaje = document.getElementById('mensaje-codigo-compra');
+        if (!producto) {
+            mensaje.textContent = 'Código no encontrado. Busca el producto en la lista.';
+            return;
+        }
+        let linea = Array.from(lineas.children).find(elemento => !elemento.querySelector('select').value);
+        if (!linea) linea = agregar();
+        const selector = linea.querySelector('select');
+        selector.value = producto.value;
+        selector.dispatchEvent(new Event('change'));
+        filtrarMarcas(linea);
+        mensaje.textContent = `Producto seleccionado: ${producto.textContent}. Escribe la cantidad recibida.`;
+        event.currentTarget.value = '';
+        linea.querySelector('input[name="cantidad[]"]').focus();
+    });
+    document.getElementById('codigo-merma')?.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        const formulario = event.currentTarget.form;
+        const selector = formulario.querySelector('select[name="id_producto"]');
+        const producto = buscarCodigo(selector, event.currentTarget.value.trim());
+        const mensaje = document.getElementById('mensaje-codigo-merma');
+        if (!producto) {
+            mensaje.textContent = 'Código no encontrado. Busca el producto en la lista.';
+            return;
+        }
+        selector.value = producto.value;
+        mensaje.textContent = `Producto seleccionado: ${producto.textContent}. Escribe la cantidad.`;
+        event.currentTarget.value = '';
+        formulario.querySelector('input[name="cantidad"]').focus();
+    });
     document.getElementById('agregar-linea')?.addEventListener('click', agregar);
     if (plantilla) agregar();
 

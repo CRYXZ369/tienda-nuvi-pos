@@ -1,8 +1,25 @@
-# Tienda Nuvi POS
+# 🛒 Tienda Nuvi POS
 
-Sistema web de punto de venta e inventario escrito en PHP y JavaScript. Incluye
-ventas, lector de códigos, productos a granel, libreta de clientes, cortes de
-caja y una cola local para tolerar interrupciones de red.
+**Un punto de venta pensado para tiendas de barrio y para quienes están detrás
+del mostrador.** Nuvi combina una caja sencilla, inventario y herramientas
+administrativas en una aplicación web que funciona en computadora o tablet.
+
+![Punto de venta Nuvi con accesos a granel y teclado de cobro](assets/demo-punto-venta.png)
+
+*Captura de una instalación de prueba con datos ficticios.*
+
+### Lo esencial, a la mano
+
+- **Cobro ágil:** lector de códigos, búsqueda, venta a granel por importe o
+  peso, teclado táctil y pagos en efectivo, tarjeta, transferencia o mixtos.
+- **Para la tienda real:** inventario, precios, existencias negativas visibles,
+  libreta de fiados, cortes de caja y reportes.
+- **Cuando falla la conexión:** caja de emergencia preparada previamente en la
+  tablet, ventas pendientes y sincronización al regresar el servidor.
+- **Para administración:** bitácora, diagnóstico de errores, compras y mermas.
+
+Desarrollado con PHP, JavaScript y MySQL/MariaDB. El proyecto es de código
+abierto y busca evolucionar sin perder de vista la facilidad de uso.
 
 ## Estado de esta copia
 
@@ -11,7 +28,7 @@ elegida por quien instala. No usa ni incluye datos de una tienda real.
 
 ## Requisitos conocidos
 
-- PHP 8 o posterior con las extensiones `mysqli` y `json`.
+- PHP 8 o posterior con las extensiones `mysqli`, `mbstring` y `json`.
 - MySQL o MariaDB.
 - Apache o Nginx configurado para servir PHP.
 
@@ -30,8 +47,8 @@ La contraseña del administrador debe tener al menos 12 caracteres.
 
 ## Instalación en Windows
 
-Se requiere XAMPP instalado en `C:\xampp`, con Apache y MySQL/MariaDB
-iniciados. El instalador Windows se compila desde
+Actualmente se requiere XAMPP instalado en `C:\xampp`, con Apache y MySQL/MariaDB
+iniciados; el instalador **no instala XAMPP automáticamente**. El instalador Windows se compila desde
 `installer/windows/setup_POS_nuvi.iss` con Inno Setup 6; el script
 `installer/windows/install_windows.ps1` configura la base y solicita el
 administrador. GitHub Actions puede compilarlo al publicar una etiqueta `v*`.
@@ -50,7 +67,7 @@ clientes o ventas. Los archivos de configuración local están excluidos por
 - `punto_de_venta.php`: cobro, lector, granel y cola de ventas sin conexión.
 
 La caja de emergencia requiere abrir previamente el punto de venta con conexión
-en HTTPS, en la misma tablet y dirección de la tienda, y confirmar el aviso
+en HTTPS, en la misma tablet y dirección de la tienda, y confirmar el indicador
 «Caja de emergencia preparada». Al fallar el servidor permite registrar ventas
 en efectivo, tarjeta o transferencia, y productos a granel por importe o peso.
 Los accesos agrupan automáticamente los productos por categoría y tipo, tanto
@@ -81,6 +98,11 @@ introduce la parte en efectivo; el resto se calcula automáticamente y se puede
 indicar el efectivo entregado para calcular el cambio. Si se deja vacío, se
 considera que el cliente entregó exactamente la parte en efectivo. Cuando el
 segundo método es tarjeta, la comisión configurada se muestra por separado.
+
+En **Entradas y mermas** puedes filtrar los productos por la marca o proveedor
+habitual registrado en el inventario y escanear un código para seleccionar el
+producto. El proveedor de la compra se elige por separado; el filtro de marca no
+crea una relación automática entre proveedores y productos.
 
 El stock debe usar un tipo numérico con signo. Si una instalación antigua usa
 una columna `UNSIGNED`, se debe respaldar y ajustar su esquema antes de poder

@@ -175,7 +175,9 @@ $filtroInventarioActivo = $tieneActivoProducto ? '(activo IS NULL OR activo = 1)
 $inventarioSql = "SELECT
     COUNT(*) AS productos_activos,
     COALESCE(SUM(GREATEST(COALESCE(stock, 0), 0) * COALESCE(precio_compra, 0)), 0) AS valor_costo,
-    COALESCE(SUM(GREATEST(COALESCE(stock, 0), 0) * COALESCE(precio_venta, 0)), 0) AS valor_venta
+    COALESCE(SUM(GREATEST(COALESCE(stock, 0), 0) * COALESCE(precio_venta, 0)), 0) AS valor_venta,
+    COALESCE(SUM(CASE WHEN stock < 0 THEN 1 ELSE 0 END), 0) AS stock_negativo,
+    COALESCE(SUM(CASE WHEN stock >= 0 AND stock <= 5 THEN 1 ELSE 0 END), 0) AS stock_bajo
     FROM productos
     WHERE $filtroInventarioActivo";
 $inventarioRes = mysqli_query($conexion, $inventarioSql);
@@ -469,6 +471,7 @@ if ($categoriasRes) {
                 <small>Valor actual del inventario activo · <?php echo (int)($inventario['productos_activos'] ?? 0); ?> productos</small>
                 <strong>A costo: $<?php echo number_format((float)($inventario['valor_costo'] ?? 0), 2); ?></strong>
                 <span>Valor potencial de venta: $<?php echo number_format((float)($inventario['valor_venta'] ?? 0), 2); ?>. No forma parte del corte de hoy.</span>
+                <span>Por revisar: <?php echo (int)($inventario['stock_negativo'] ?? 0); ?> productos con existencias negativas y <?php echo (int)($inventario['stock_bajo'] ?? 0); ?> con existencias de 0 a 5 en su unidad. Son existencias actuales, no históricas.</span>
             </div>
             <?php
                 $maxMetodo = max($ventas_efectivo, $ventas_tarjeta, $ventas_transferencia, $ventas_fiado, $ventas_otro, 1);

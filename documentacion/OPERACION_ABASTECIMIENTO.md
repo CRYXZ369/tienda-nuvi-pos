@@ -19,6 +19,14 @@ productos existentes.
    reduzcas el stock sólo para ocultar una pérdida: la merma conserva motivo y
    costo para reportes.
 
+Para registrar una compra, selecciona el proveedor de la operación. Puedes
+filtrar el listado por la marca o proveedor habitual que figura en inventario:
+esto sólo facilita la búsqueda y no asigna automáticamente proveedores.
+Escanea el código en el campo correspondiente y pulsa Enter si el lector no lo
+envía; elige la cantidad y revisa el costo propuesto antes de guardar. La merma
+también permite seleccionar por código. La operación sólo modifica existencias
+al guardar el formulario; un código no encontrado no agrega ningún producto.
+
 ## Caducidad
 
 Los lotes capturados aparecen durante los 30 días previos a caducar. Las ventas
@@ -100,8 +108,11 @@ decimales. Los accesos se agrupan automáticamente por categoría y tipo a parti
 del catálogo y no sustituyen al buscador. La base debe tener
 preparada la migración de cantidades decimales para poder sincronizarlos.
 Las categorías `Fruto` y `Frutos` se agrupan como `Frutos` sin modificar el
-inventario. Los productos que no forman una familia se muestran directamente
-si son cuatro o menos; con cinco o más se agrupan en `Otros productos`.
+inventario. Los productos que no forman una familia se muestran directamente,
+sin una pantalla adicional de «Otros productos». El orden usa la puntuación
+de uso del dispositivo; en la caja normal también se carga la puntuación remota
+de la cuenta. Las ventas de emergencia actualizan el orden local después de
+guardarse, sin modificar la venta ni depender de la conexión.
 Si la tablet se queda sin batería o no estaba preparada, no se puede garantizar
 la operación. En `http://192.168.x.x` el service worker no es fiable: usa HTTPS
 confiable en la misma dirección de la tienda.

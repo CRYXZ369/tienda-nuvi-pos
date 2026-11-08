@@ -380,6 +380,12 @@
             guardada = true;
             carrito.clear();
             recibido.value = '';
+            try {
+                NuviEmergencia.incrementarOrdenGranel(productos);
+                mostrarGranel();
+            } catch (error) {
+                console.warn('No se pudieron actualizar los accesos a granel:', error);
+            }
             avisar(`Venta guardada en esta tablet.${metodo === 'efectivo' ? ` Cambio: ${dinero(cambio)}.` : ''} Falta enviarla al servidor.`);
             await mostrarPendientes();
             buscar.focus();

@@ -69,6 +69,23 @@
         if (nombre.includes('cebolla')) return '🧅';
         if (nombre.includes('papa')) return '🥔';
         if (nombre.includes('naranja')) return '🍊';
+        if (nombre.includes('cloro') || nombre.includes('detergente')) return '🧴';
+        if (nombre.includes('tocino')) return '🥓';
+        if (nombre.includes('salchicha') || nombre.includes('longaniza')) return '🌭';
+        if (nombre.includes('chile') || nombre.includes('chipotle') || nombre.includes('morita')) return '🌶️';
+        if (nombre.includes('nuez') || nombre.includes('almendra') || nombre.includes('cacahuate')) return '🥜';
+        if (nombre.includes('frijol')) return '🫘';
+        if (nombre.includes('arroz')) return '🍚';
+        if (nombre.includes('manzana')) return '🍎';
+        if (nombre.includes('platano') || nombre.includes('banana')) return '🍌';
+        if (nombre.includes('aguacate')) return '🥑';
+        if (nombre.includes('zanahoria')) return '🥕';
+        if (nombre.includes('pepino')) return '🥒';
+        if (nombre.includes('huevo')) return '🥚';
+        if (nombre.includes('crema') || nombre.includes('leche')) return '🥛';
+        if (nombre.includes('pan')) return '🍞';
+        if (nombre.includes('dulce')) return '🍬';
+        if (nombre.includes('mole') || nombre.includes('salsa')) return '🥫';
         return '⚖️';
     }
 
@@ -116,7 +133,30 @@
             if (!familias.has(claveFamilia)) familias.set(claveFamilia, { nombre: datos.familia, icono: datos.iconoFamilia, productos: [] });
             familias.get(claveFamilia).productos.push(producto);
         });
-        const ordenar = lista => lista.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+        const puntuaciones = () => {
+            try {
+                const datos = JSON.parse(localStorage.getItem('nuvi_pos_scores') || '{}');
+                return datos && typeof datos === 'object' && !Array.isArray(datos) ? datos : {};
+            } catch (error) {
+                console.warn('No se pudo leer el orden de productos:', error);
+                return {};
+            }
+        };
+        const scoreProducto = (producto, scores) => {
+            const score = Number(scores[String(producto.id)]);
+            return Number.isFinite(score) && score > 0 ? score : 0;
+        };
+        const scoreItem = (item, scores) => {
+            if (item.familias) {
+                return Array.from(item.familias.values()).reduce((total, familia) => total + scoreItem(familia, scores), 0);
+            }
+            if (item.productos) return item.productos.reduce((total, producto) => total + scoreProducto(producto, scores), 0);
+            return scoreProducto(item, scores);
+        };
+        const ordenar = lista => {
+            const scores = puntuaciones();
+            return lista.sort((a, b) => scoreItem(b, scores) - scoreItem(a, scores) || a.nombre.localeCompare(b.nombre, 'es'));
+        };
         function boton(texto, accion) {
             const elemento = document.createElement('button');
             elemento.type = 'button';
@@ -133,19 +173,17 @@
         function familias(grupo) {
             contenedor.replaceChildren();
             boton('← Categorías', inicio);
-            const directos = [];
-            ordenar(Array.from(grupo.familias.values())).forEach(familia => {
+            const accesos = [];
+            Array.from(grupo.familias.values()).forEach(familia => {
                 if (familia.nombre === 'Otros productos' || familia.productos.length === 1) {
-                    directos.push(...familia.productos);
+                    accesos.push(...familia.productos);
                 } else {
-                    boton(`${familia.icono} ${familia.nombre}`, () => lista(grupo, familia));
+                    accesos.push(familia);
                 }
             });
-            if (directos.length > 4) {
-                boton('⚖️ Otros productos', () => lista(grupo, { productos: directos }));
-            } else {
-                ordenar(directos).forEach(producto => botonProducto(producto));
-            }
+            ordenar(accesos).forEach(item => item.productos
+                ? boton(`${item.icono} ${item.nombre}`, () => lista(grupo, item))
+                : botonProducto(item));
         }
         function botonProducto(producto) {
             boton(`${iconoGranel(producto)} ${producto.nombre}${producto.marca ? ` · ${producto.marca}` : ''} · $${Number(producto.precio_venta).toFixed(2)}/${producto.unidad_medida} · ID ${producto.id}`, () => seleccionar(producto));
@@ -156,6 +194,23 @@
             ordenar(familia.productos.slice()).forEach(botonProducto);
         }
         inicio();
+    }
+
+    function incrementarOrdenGranel(productos) {
+        try {
+            const scores = JSON.parse(localStorage.getItem('nuvi_pos_scores') || '{}');
+            if (!scores || typeof scores !== 'object' || Array.isArray(scores)) throw new Error('Puntuaciones inválidas');
+            productos.filter(esGranel).forEach(producto => {
+                const cantidad = Number(producto.cantidad);
+                const anterior = Number(scores[String(producto.id)]) || 0;
+                if (producto.id && Number.isFinite(cantidad) && cantidad > 0) {
+                    scores[String(producto.id)] = anterior + cantidad;
+                }
+            });
+            localStorage.setItem('nuvi_pos_scores', JSON.stringify(scores));
+        } catch (error) {
+            console.warn('No se pudo actualizar el orden de productos a granel:', error);
+        }
     }
 
     async function guardarCatalogo(idUsuario, nombre, productos) {
@@ -255,7 +310,9 @@
     function iniciarEnCaja(idUsuario) {
         const preparacion = document.createElement('div');
         preparacion.setAttribute('role', 'status');
-        preparacion.style.cssText = 'margin:12px auto;padding:10px;max-width:1050px;border-radius:10px;font-weight:700;';
+        preparacion.style.cssText = 'margin:4px 0 10px auto;padding:6px 10px;width:fit-content;max-width:100%;border-radius:8px;font-size:13px;font-weight:600;';
+        preparacion.style.setProperty('background', '#dcfce7', 'important');
+        preparacion.style.setProperty('color', '#166534', 'important');
         const panel = document.createElement('div');
         panel.setAttribute('role', 'status');
         panel.style.cssText = 'display:none;margin:12px auto;padding:12px;max-width:1050px;background:#fff7ed;color:#9a3412;border:2px solid #f59e0b;border-radius:10px;font-weight:700;';
@@ -274,10 +331,10 @@
                     && 'caches' in window && await caches.match('offline.html')
                     && await caches.match('js/nuvi-emergencia.js') && await caches.match('js/caja-emergencia.js')
                     && catalogo && Number(catalogo.id_usuario) === Number(idUsuario) && catalogo.productos.length;
-                preparacion.style.background = lista ? '#dcfce7' : '#fff7ed';
-                preparacion.style.color = lista ? '#166534' : '#9a3412';
+                preparacion.style.setProperty('background', lista ? '#dcfce7' : '#fff7ed', 'important');
+                preparacion.style.setProperty('color', lista ? '#166534' : '#9a3412', 'important');
                 preparacion.textContent = lista
-                    ? 'Caja de emergencia preparada en esta tablet.'
+                    ? '✓ Caja de emergencia preparada'
                     : 'Caja de emergencia aún no preparada. Mantén esta página abierta con conexión y recárgala.';
                 const resultado = await sincronizar(idUsuario);
                 const otras = await otrasPendientes(idUsuario);
@@ -293,8 +350,8 @@
                     panel.append(enlace);
                 }
             } catch (error) {
-                preparacion.style.background = '#fff7ed';
-                preparacion.style.color = '#9a3412';
+                preparacion.style.setProperty('background', '#fff7ed', 'important');
+                preparacion.style.setProperty('color', '#9a3412', 'important');
                 preparacion.textContent = 'No se pudo comprobar si la caja de emergencia está preparada.';
                 panel.style.display = 'block';
                 panel.textContent = 'No se pudo revisar la memoria de emergencia: ' + error.message;
@@ -315,5 +372,5 @@
         setInterval(actualizar, 30000);
     }
 
-    window.NuviEmergencia = { guardarCatalogo, leerCatalogo: () => leer(CATALOGO, 'actual'), pendientes, todasPendientes, otrasPendientes, escribirVenta: venta => escribir(VENTAS, venta, 'add'), claveVenta, sincronizar, revisarVenta, iniciarEnCaja, esGranel, iconoGranel, crearArbolGranel };
+    window.NuviEmergencia = { guardarCatalogo, leerCatalogo: () => leer(CATALOGO, 'actual'), pendientes, todasPendientes, otrasPendientes, escribirVenta: venta => escribir(VENTAS, venta, 'add'), claveVenta, sincronizar, revisarVenta, iniciarEnCaja, esGranel, iconoGranel, crearArbolGranel, incrementarOrdenGranel };
 })();

@@ -668,9 +668,15 @@
 
             <h1>🏪 Punto de Venta - Nuvi</h1>
 
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin:-8px 0 18px 0; align-items:center;">
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin:-8px 0 18px 0; align-items:center; flex-wrap:wrap;">
+                <button onclick="abrirLibreta()" type="button" style="background:#0e5a77; color:white; padding:10px 14px; border:none; border-radius:10px; font-weight:700;">
+                    📖 Libreta
+                </button>
                 <button onclick="abrirVentasRecientes()" type="button" style="background:#f59e0b; color:white; padding:10px 16px; border:none; border-radius:10px; font-weight:700;">
                     📋 Ver Ventas Recientes
+                </button>
+                <button id="btn-escaner" type="button" style="background:#475569; color:white; padding:10px 14px; border:none; border-radius:10px; font-weight:700; cursor:pointer;">
+                    📷 Usar cámara
                 </button>
                 <button id="btn-imprimir-ultimo-ticket" type="button" style="display:none; background:#0f766e; color:white; padding:10px 14px; border:none; border-radius:10px; font-weight:700;">
                     🧾 Último ticket
@@ -684,11 +690,6 @@
             </div>
 
             <div id="mensaje-error" class="error-msg"></div>
-
-            <button id="btn-escaner" style="width: 100%; padding: 10px; margin-bottom: 10px; background-color: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer;">
-                📷 Iniciar Cámara para Escanear
-
-            </button>
 
             <div id="reader" style="width: 100%; max-width: 500px; margin: auto; display: none; border: 2px solid #007bff; border-radius: 8px; overflow: hidden;"></div>
             <div id="controles-camara" style="display:none; width:100%; max-width:500px; margin:8px auto 14px; padding:10px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; color:#1e3a8a;">
@@ -708,10 +709,6 @@
                 </div>
             </div>
 
-            <button onclick="abrirLibreta()"
-                style="width: 100%; background-color: #0e5a77; color: white; padding: 12px; border: none; border-radius: 8px; margin-bottom: 20px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <i class="fas fa-book-open"></i> Ir a Libreta Digital (Cuentas Fiadas/Importes)
-            </button>
             <div id="modalLibreta" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
                 <div style="background:white; width:90%; max-width:600px; margin:50px auto; padding:20px; border-radius:15px; max-height:80vh; overflow-y:auto;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -927,7 +924,7 @@
             </button>
         </div>
 
-        <script src="js/nuvi-emergencia.js?v=17"></script>
+        <script src="js/nuvi-emergencia.js?v=18"></script>
         <script>
             // ============================================
             // 🚀 ESTADO GLOBAL Y CONSTANTES
@@ -1911,7 +1908,10 @@
                 DOM.panelGranel.style.display = estaAbierto ? 'none' : 'block';
                 DOM.btnAbrirGranel.innerText = estaAbierto ? "⚖️ Venta a Granel (Jamón, Queso, etc.)" : "❌ Cerrar Panel de Granel";
                 DOM.btnAbrirGranel.style.backgroundColor = estaAbierto ? "#f39c12" : "#f96d5d";
-                if (!estaAbierto) DOM.inputBusquedaGranel.focus();
+                if (!estaAbierto) {
+                    mostrarAccesosGranel();
+                    DOM.inputBusquedaGranel.focus();
+                }
             });
 
             DOM.inputBusquedaGranel.addEventListener('keyup', () => {
@@ -3231,8 +3231,8 @@
                     html5QrCode.stop().then(() => {
                         escanerActivo = false;
                         modoPocaLuzActivo = false;
-                        DOM.btnEscaner.innerText = "📷 Iniciar Cámara para Escanear";
-                        DOM.btnEscaner.style.backgroundColor = "#6c757d";
+                        DOM.btnEscaner.innerText = "📷 Usar cámara";
+                        DOM.btnEscaner.style.backgroundColor = "#475569";
                         DOM.readerDiv.style.display = 'none';
                         DOM.controlesCamara.style.display = 'none';
                         html5QrCode = null;
