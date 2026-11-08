@@ -79,6 +79,10 @@ Al volver el servidor, entra a la caja normal con la misma cuenta o usa
 PWA mientras existan pendientes. El almacenamiento del navegador puede perderse;
 no reemplaza los respaldos. Si el catálogo o el precio cambiaron, la venta
 permanece pendiente y necesita revisión; nunca se descarta automáticamente.
+Después de intentar el envío desde la caja de emergencia, cada venta rechazada
+muestra el motivo en su detalle durante esa visita. Si se pierde una respuesta,
+podría haberse registrado: reintenta el envío y no cobres otra vez. Los motivos
+no se conservan al cerrar la página; la venta pendiente sí permanece en la tablet.
 Si el catálogo guardado deja de estar disponible, la caja no permite nuevas
 ventas, pero todavía muestra el detalle de las ventas pendientes que permanezcan
 en la tablet para que un administrador pueda revisarlas.

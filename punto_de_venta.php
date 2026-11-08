@@ -924,7 +924,7 @@
             </button>
         </div>
 
-        <script src="js/nuvi-emergencia.js?v=18"></script>
+        <script src="js/nuvi-emergencia.js?v=19"></script>
         <script>
             // ============================================
             // 🚀 ESTADO GLOBAL Y CONSTANTES

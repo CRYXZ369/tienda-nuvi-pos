@@ -10,6 +10,7 @@
     let totalCentavos = 0;
     let productoGranel = null;
     let terminales = [];
+    let motivosPendientes = new Map();
 
     const dinero = centavos => '$' + (centavos / 100).toFixed(2);
     const avisar = texto => { $('mensaje').textContent = texto; };
@@ -278,6 +279,12 @@
             const titulo = document.createElement('summary');
             titulo.textContent = `${new Date(venta.createdAt).toLocaleString('es-MX')} · ${dinero(Math.round(venta.payload.total * 100))} · Cuenta ${venta.id_usuario}`;
             tarjeta.append(titulo);
+            if (motivosPendientes.has(venta.id)) {
+                const motivo = document.createElement('p');
+                motivo.setAttribute('role', 'status');
+                motivo.textContent = `Último intento: ${motivosPendientes.get(venta.id)}. No vuelvas a cobrar; pide ayuda a administración.`;
+                tarjeta.append(motivo);
+            }
             venta.payload.productos.forEach(producto => {
                 const linea = document.createElement('p');
                 const importeBase = Math.round((Number(producto.precio) * Number(producto.cantidad) + Number.EPSILON) * 100);
@@ -310,6 +317,7 @@
                     avisar('Venta registrada. No vuelvas a cobrarla.');
                     await mostrarPendientes();
                 } catch (error) {
+                    motivosPendientes.set(venta.id, error.message || 'No se pudo verificar el registro');
                     avisar('No se pudo confirmar o actualizar la venta. Podría estar registrada: no la vuelvas a cobrar. Reintenta o solicita ayuda: ' + error.message);
                     revisar.disabled = false;
                 }
@@ -325,6 +333,7 @@
         $('sincronizar').disabled = true;
         try {
             const resultado = await NuviEmergencia.sincronizar(catalogo.id_usuario);
+            motivosPendientes = new Map((resultado.detalles || []).map(detalle => [detalle.id, detalle.motivo]));
             await mostrarPendientes();
             if (resultado.errores.length) avisar(resultado.errores.join('\n'));
             else if (!resultado.pendientes && !silenciosa) avisar('No hay ventas de emergencia pendientes.');

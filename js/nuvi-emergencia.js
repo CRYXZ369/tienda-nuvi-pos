@@ -270,6 +270,7 @@
             return { pendientes: cola.length, errores: ['Inicia sesión con la cuenta que registró estas ventas.'] };
         }
         const errores = [];
+        const detalles = [];
         for (const venta of cola) {
             try {
                 const respuesta = await solicitud('finalizar_venta.php', {
@@ -286,10 +287,11 @@
                 const motivo = (error.message || '').includes('El precio cambió')
                     ? 'El precio cambió y necesita revisión'
                     : (error.message || 'sin conexión').replace(/[.。]+$/, '');
+                detalles.push({ id: venta.id, motivo });
                 errores.push(`Venta ya cobrada ${new Date(venta.createdAt).toLocaleString('es-MX')}: ${motivo}. No vuelvas a cobrarla.`);
             }
         }
-        return { pendientes: (await pendientes(idUsuario)).length, errores };
+        return { pendientes: (await pendientes(idUsuario)).length, errores, detalles };
     }
 
     async function revisarVenta(venta) {
