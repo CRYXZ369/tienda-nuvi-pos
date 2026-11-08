@@ -48,7 +48,9 @@ begin
 	end;
 	if HasFiles then
 	begin
-		MsgBox('La carpeta destino ya contiene archivos. No se sobrescribio nada.', mbError, MB_OK);
+		Log('La carpeta destino contiene archivos; no se sobrescribio nada.');
+		if not WizardSilent then
+			MsgBox('La carpeta destino ya contiene archivos. No se sobrescribio nada.', mbError, MB_OK);
 		Result := False;
 	end
 	else

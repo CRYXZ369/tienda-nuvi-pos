@@ -49,6 +49,28 @@ jobs:
           }
           if ($setup.ExitCode -eq 0) { throw 'El instalador aceptó un equipo sin XAMPP.' }
           if (Test-Path 'C:\xampp') { throw 'El instalador creó archivos antes de validar XAMPP.' }
+      - name: Test existing installation protection
+        shell: pwsh
+        run: |
+          if (Test-Path 'C:\xampp') {
+            throw 'El runner ya contiene C:\xampp; la prueba no modificará una instalación existente.'
+          }
+          New-Item -ItemType Directory -Force 'C:\xampp\php', 'C:\xampp\mysql\bin', 'C:\xampp\htdocs\tienda-nuvi' | Out-Null
+          New-Item -ItemType File 'C:\xampp\php\php.exe', 'C:\xampp\mysql\bin\mysql.exe' | Out-Null
+          Set-Content 'C:\xampp\htdocs\tienda-nuvi\no-sobrescribir.txt' 'dato de prueba'
+          $setup = Start-Process -FilePath (Join-Path $PWD 'dist\setup_POS_nuvi.exe') `
+            -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -PassThru
+          if (!$setup.WaitForExit(30000)) {
+            Stop-Process -Id $setup.Id -Force
+            throw 'El instalador no terminó la comprobación en 30 segundos.'
+          }
+          if ($setup.ExitCode -eq 0) { throw 'El instalador aceptó una carpeta con archivos.' }
+          if ((Get-Content 'C:\xampp\htdocs\tienda-nuvi\no-sobrescribir.txt' -Raw).Trim() -ne 'dato de prueba') {
+            throw 'El instalador modificó el archivo existente.'
+          }
+          if ((Get-ChildItem 'C:\xampp\htdocs\tienda-nuvi' -Force).Count -ne 1) {
+            throw 'El instalador copió archivos sobre la carpeta existente.'
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: setup_POS_nuvi
