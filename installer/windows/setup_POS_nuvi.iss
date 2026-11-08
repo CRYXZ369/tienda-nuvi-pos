@@ -21,9 +21,6 @@ Source: "{#SourceRoot}*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 
 [Code]
 function InitializeSetup(): Boolean;
-var
-	SearchRec: TFindRec;
-	HasFiles: Boolean;
 begin
 	if not FileExists('C:\xampp\php\php.exe') or
 	   not FileExists('C:\xampp\mysql\bin\mysql.exe') then
@@ -34,7 +31,14 @@ begin
 		Result := False;
 		exit;
 	end;
+	Result := True;
+end;
 
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+	SearchRec: TFindRec;
+	HasFiles: Boolean;
+begin
 	HasFiles := False;
 	if DirExists(ExpandConstant('{app}')) and FindFirst(ExpandConstant('{app}\*'), SearchRec) then
 	begin
@@ -47,12 +51,10 @@ begin
 	if HasFiles then
 	begin
 		Log('La carpeta destino contiene archivos; no se sobrescribio nada.');
-		if not WizardSilent then
-			MsgBox('La carpeta destino ya contiene archivos. No se sobrescribio nada.', mbError, MB_OK);
-		Result := False;
+		Result := 'La carpeta destino ya contiene archivos. No se sobrescribio nada.';
 	end
 	else
-		Result := True;
+		Result := '';
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
