@@ -20,6 +20,9 @@ LicenseFile={#SourceRoot}LICENSE
 Source: "{#SourceRoot}*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: ".git\*,dist\*,backups\*,logs\*,releases\*,recursos\*,RESPALDO UBUNTU\*,documentacion\historico\backup_innecesarios_2026-04-22\*,config\local.php,config\backup.local.env,config\ticket.local.php,.env*,tienda_nuvi.backup.sql"
 
 [Code]
+var
+	ConfiguracionFallida: Boolean;
+
 function InitializeSetup(): Boolean;
 begin
 	if not FileExists('C:\xampp\php\php.exe') or
@@ -61,6 +64,7 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
 	ResultCode: Integer;
 	Parameters: String;
+	ErrorTexto: String;
 begin
 	if CurStep = ssPostInstall then
 	begin
@@ -69,9 +73,25 @@ begin
 			'" -AppRoot "' + ExpandConstant('{app}') + '"';
 		if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
 			Parameters, '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode) then
-			RaiseException('No se pudo iniciar la configuracion. La instalacion no esta lista; revisa los archivos y la base de datos antes de reintentar.');
-		if ResultCode <> 0 then
-			RaiseException('La configuracion fallo (codigo ' + IntToStr(ResultCode) +
-				'). La instalacion no esta lista; revisa los mensajes, archivos y base de datos antes de reintentar.');
+			ErrorTexto := 'No se pudo iniciar la configuracion.'
+		else if ResultCode <> 0 then
+			ErrorTexto := 'La configuracion fallo (codigo ' + IntToStr(ResultCode) + ').';
+		if ErrorTexto <> '' then
+		begin
+			ConfiguracionFallida := True;
+			ErrorTexto := ErrorTexto + ' La instalacion no esta lista; revisa los mensajes, archivos y base de datos antes de reintentar.';
+			Log(ErrorTexto);
+			WizardForm.FinishedLabel.Caption := ErrorTexto;
+			if not WizardSilent then
+				MsgBox(ErrorTexto, mbError, MB_OK);
+		end;
 	end;
+end;
+
+function GetCustomSetupExitCode(): Integer;
+begin
+	if ConfiguracionFallida then
+		Result := 1
+	else
+		Result := 0;
 end;
