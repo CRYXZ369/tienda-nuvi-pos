@@ -42,7 +42,11 @@ jobs:
             throw 'El runner ya contiene C:\xampp; la prueba no modificará una instalación existente.'
           }
           $setup = Start-Process -FilePath (Join-Path $PWD 'dist\setup_POS_nuvi.exe') `
-            -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+            -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -PassThru
+          if (!$setup.WaitForExit(30000)) {
+            Stop-Process -Id $setup.Id -Force
+            throw 'El instalador no terminó la comprobación en 30 segundos.'
+          }
           if ($setup.ExitCode -eq 0) { throw 'El instalador aceptó un equipo sin XAMPP.' }
           if (Test-Path 'C:\xampp') { throw 'El instalador creó archivos antes de validar XAMPP.' }
       - uses: actions/upload-artifact@v4
