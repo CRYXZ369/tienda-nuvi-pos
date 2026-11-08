@@ -19,9 +19,6 @@ LicenseFile={#SourceRoot}LICENSE
 [Files]
 Source: "{#SourceRoot}*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: ".git\*,dist\*,backups\*,logs\*,releases\*,recursos\*,RESPALDO UBUNTU\*,documentacion\historico\backup_innecesarios_2026-04-22\*,config\local.php,config\backup.local.env,config\ticket.local.php,.env*,tienda_nuvi.backup.sql"
 
-[Run]
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\windows\install_windows.ps1"" -AppRoot ""{app}"""; Description: "Configurar base de datos y administrador"; Flags: waituntilterminated
-
 [Code]
 function InitializeSetup(): Boolean;
 var
@@ -36,6 +33,25 @@ begin
 			MsgBox('Antes de instalar Nuvi, instala XAMPP en C:\xampp e inicia Apache y MySQL. No se copio ningun archivo.', mbError, MB_OK);
 		Result := False;
 		exit;
+	end;
+
+	procedure CurStepChanged(CurStep: TSetupStep);
+	var
+		ResultCode: Integer;
+		Parameters: String;
+	begin
+		if CurStep = ssPostInstall then
+		begin
+			Parameters := '-NoProfile -ExecutionPolicy Bypass -File "' +
+				ExpandConstant('{app}\installer\windows\install_windows.ps1') +
+				'" -AppRoot "' + ExpandConstant('{app}') + '"';
+			if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+				Parameters, '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode) then
+				RaiseException('No se pudo iniciar la configuracion. La instalacion no esta lista; revisa los archivos y la base de datos antes de reintentar.');
+			if ResultCode <> 0 then
+				RaiseException('La configuracion fallo (codigo ' + IntToStr(ResultCode) +
+					'). La instalacion no esta lista; revisa los mensajes, archivos y base de datos antes de reintentar.');
+		end;
 	end;
 	HasFiles := False;
 	if DirExists(ExpandConstant('{app}')) and FindFirst(ExpandConstant('{app}\*'), SearchRec) then

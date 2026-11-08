@@ -71,6 +71,28 @@ jobs:
           if ((Get-ChildItem 'C:\xampp\htdocs\tienda-nuvi' -Force).Count -ne 1) {
             throw 'El instalador copió archivos sobre la carpeta existente.'
           }
+      - name: Test configuration failure is reported
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'nuvi-installer-fixture'
+          New-Item -ItemType Directory -Path $fixture | Out-Null
+          git archive HEAD | tar -xf - -C $fixture
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo preparar el paquete de prueba.' }
+          Set-Content -Path (Join-Path $fixture 'installer\windows\install_windows.ps1') -Value 'exit 37'
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" (Join-Path $fixture 'installer\windows\setup_POS_nuvi.iss')
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el paquete de prueba.' }
+          Remove-Item 'C:\xampp\htdocs\tienda-nuvi\no-sobrescribir.txt'
+          $log = Join-Path $env:RUNNER_TEMP 'nuvi-failure-test.log'
+          $setup = Start-Process -FilePath (Join-Path $fixture 'dist\setup_POS_nuvi.exe') `
+            -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$log" -PassThru
+          if (!$setup.WaitForExit(30000)) {
+            Stop-Process -Id $setup.Id -Force
+            throw 'El instalador no informó el fallo de configuración en 30 segundos.'
+          }
+          if ($setup.ExitCode -eq 0) { throw 'La configuración falló, pero el instalador informó éxito.' }
+          if (!(Select-String -Path $log -SimpleMatch 'La configuracion fallo (codigo 37)' -Quiet)) {
+            throw 'El instalador no identificó el fallo de configuración en el registro.'
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: setup_POS_nuvi

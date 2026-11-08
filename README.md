@@ -54,7 +54,10 @@ iniciados; el instalador **no instala XAMPP automáticamente**. El instalador Wi
 `installer/windows/setup_POS_nuvi.iss` con Inno Setup 6; el script
 `installer/windows/install_windows.ps1` configura la base y solicita el
 administrador. Si falta XAMPP en esa ruta, el instalador se detiene antes de
-copiar archivos. GitHub Actions puede compilarlo al publicar una etiqueta `v*`.
+copiar archivos. Si falla la configuración, informa que la instalación no está
+lista: revisa los mensajes, la carpeta y la base antes de volver a intentarlo,
+ya que puede haber archivos o una base parcialmente creados.
+GitHub Actions puede compilarlo al publicar una etiqueta `v*`.
 
 Al publicar una etiqueta `v*`, GitHub Actions compila el instalador y lo adjunta
 a la Release de esa versión. También puedes compilarlo localmente con
