@@ -99,7 +99,7 @@ if (!function_exists('nuviPrepararProductosVenta')) {
      *
      * Debe llamarse dentro de una transacción.
      */
-    function nuviPrepararProductosVenta(mysqli $conexion, array $productos, bool $permitirStockNegativo = false): array
+    function nuviPrepararProductosVenta(mysqli $conexion, array $productos, bool $permitirStockNegativo = false, array $preciosAutorizados = []): array
     {
         if (empty($productos)) {
             throw new Exception('El carrito está vacío');
@@ -160,6 +160,14 @@ if (!function_exists('nuviPrepararProductosVenta')) {
             }
 
             $idProducto = (int) $fila['id'];
+            $precioVenta = (float) $fila['precio_venta'];
+            if (array_key_exists($idProducto, $preciosAutorizados)) {
+                $precioVenta = $preciosAutorizados[$idProducto];
+                if (!is_numeric($precioVenta) || !is_finite((float) $precioVenta) || (float) $precioVenta <= 0) {
+                    throw new Exception('El precio autorizado no es válido');
+                }
+                $precioVenta = (float) $precioVenta;
+            }
             $unidad = strtolower(trim((string) ($fila['unidad_medida'] ?? '')));
             $esUnidadGranel = in_array($unidad, ['kg', 'g', 'l', 'lt', 'ml'], true);
             $esGranel = !empty($producto['origen_granel']) && $esUnidadGranel;
@@ -185,7 +193,7 @@ if (!function_exists('nuviPrepararProductosVenta')) {
                     'id' => $idProducto,
                     'nombre' => (string) $fila['nombre'],
                     'cantidad' => 0.0,
-                    'precio' => (float) $fila['precio_venta'],
+                    'precio' => $precioVenta,
                     'costo' => max(0, (float) ($fila['precio_compra'] ?? 0)),
                     'stock' => (float) $fila['stock'],
                     'es_granel' => $esGranel,

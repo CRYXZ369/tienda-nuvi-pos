@@ -231,10 +231,11 @@
     }));
 
     async function mostrarPendientes() {
-        const cola = await NuviEmergencia.pendientes(catalogo.id_usuario);
-        const otras = await NuviEmergencia.otrasPendientes(catalogo.id_usuario);
-        $('pendientes').textContent = (cola.length
-            ? `${cola.length} venta(s) pendientes en esta tablet.`
+        const cola = await NuviEmergencia.todasPendientes();
+        const otras = cola.filter(venta => Number(venta.id_usuario) !== Number(catalogo.id_usuario)).length;
+        const propias = cola.length - otras;
+        $('pendientes').textContent = (propias
+            ? `${propias} venta(s) pendientes de esta cuenta en esta tablet.`
             : 'No hay ventas de emergencia pendientes para esta cuenta.')
             + (otras ? ` ${otras} venta(s) más pertenecen a otra cuenta.` : '');
         const detalle = $('detalle-pendientes');
@@ -242,11 +243,14 @@
         cola.forEach(venta => {
             const tarjeta = document.createElement('details');
             const titulo = document.createElement('summary');
-            titulo.textContent = `${new Date(venta.createdAt).toLocaleString('es-MX')} · ${dinero(Math.round(venta.payload.total * 100))}`;
+            titulo.textContent = `${new Date(venta.createdAt).toLocaleString('es-MX')} · ${dinero(Math.round(venta.payload.total * 100))} · Cuenta ${venta.id_usuario}`;
             tarjeta.append(titulo);
             venta.payload.productos.forEach(producto => {
                 const linea = document.createElement('p');
-                linea.textContent = `${producto.nombre} · ${producto.cantidad} × ${dinero(Math.round(producto.precio * 100))}${producto.origen_granel ? ` · redondeo ${producto.redondeo_granel}` : ''}`;
+                const importeBase = Math.round((Number(producto.precio) * Number(producto.cantidad) + Number.EPSILON) * 100);
+                const importe = producto.redondeo_granel === 'arriba' ? Math.ceil(importeBase / 100) * 100
+                    : producto.redondeo_granel === 'abajo' ? Math.floor(importeBase / 100) * 100 : importeBase;
+                linea.textContent = `${producto.nombre} · ${producto.cantidad} × ${dinero(Math.round(producto.precio * 100))} = ${dinero(importe)}${producto.origen_granel ? ` · redondeo ${producto.redondeo_granel}` : ''}`;
                 tarjeta.append(linea);
             });
             const pago = document.createElement('p');
@@ -256,6 +260,28 @@
                     ? `Tarjeta · ${(venta.payload.terminal_emergencia || {}).nombre || 'terminal'} · cobrado ${dinero(Math.round(venta.payload.cobro_tarjeta_emergencia * 100))}`
                     : 'Transferencia';
             tarjeta.append(pago);
+            if (venta.payload.metodo_pago === 'tarjeta' && venta.payload.terminal_emergencia) {
+                const terminal = venta.payload.terminal_emergencia;
+                const comision = document.createElement('p');
+                comision.textContent = `Comisión: ${terminal.comision_porcentaje}% · IVA: ${terminal.iva_porcentaje}% · Cargo fijo: $${Number(terminal.cargo_fijo).toFixed(2)}`;
+                tarjeta.append(comision);
+            }
+            const revisar = document.createElement('button');
+            revisar.type = 'button';
+            revisar.textContent = 'Autorizar registro con importes originales';
+            revisar.addEventListener('click', async () => {
+                if (!window.confirm('Solo administrador o supervisor: revisa los productos y confirma que estos importes ya se cobraron. ¿Registrar la venta con esos precios y comisión originales?')) return;
+                revisar.disabled = true;
+                try {
+                    await NuviEmergencia.revisarVenta(venta);
+                    avisar('Venta registrada. No vuelvas a cobrarla.');
+                    await mostrarPendientes();
+                } catch (error) {
+                    avisar('No se pudo confirmar o actualizar la venta. Podría estar registrada: no la vuelvas a cobrar. Reintenta o solicita ayuda: ' + error.message);
+                    revisar.disabled = false;
+                }
+            });
+            tarjeta.append(revisar);
             detalle.append(tarjeta);
         });
     }

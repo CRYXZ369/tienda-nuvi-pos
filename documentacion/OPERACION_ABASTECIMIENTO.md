@@ -55,8 +55,13 @@ Al volver el servidor, entra a la caja normal con la misma cuenta o usa
 PWA mientras existan pendientes. El almacenamiento del navegador puede perderse;
 no reemplaza los respaldos. Si el catálogo o el precio cambiaron, la venta
 permanece pendiente y necesita revisión; nunca se descarta automáticamente.
-Todavía no existe un flujo para resolver y contabilizar esas ventas con el
-precio original; por ello esta versión no está lista para producción.
+Un administrador o supervisor puede revisar el detalle pendiente y autorizar
+su registro con los importes originales. La revisión exige iniciar sesión en
+la tablet con conexión y no vuelve a cobrar al cliente. El registro conserva
+la cuenta original y anota quién autorizó la revisión. Si falta un producto,
+la cuenta original o la terminal ya no está activa, la venta sigue pendiente
+para revisión manual. Esta funcionalidad sigue en pruebas y no está lista
+para producción.
 La fecha y hora de la tablet quedan en la nota de la venta, mientras que la
 fecha principal del servidor corresponde a la sincronización.
 

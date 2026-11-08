@@ -64,8 +64,9 @@ de nuevo. La fecha principal del reporte será la de sincronización, y la hora
 original se guarda en la nota. Consulta los límites y preparación en
 [Operación y abastecimiento](documentacion/OPERACION_ABASTECIMIENTO.md).
 
-La resolución de ventas pendientes rechazadas todavía no está implementada;
-esta versión de la caja de emergencia no está lista para producción.
+La revisión de ventas pendientes por un administrador o supervisor está en
+pruebas; esta versión de la caja de emergencia todavía no está lista para
+producción.
 - `consultar_productos.php` y `obtener_productos_criticos.php`: inventario.
 - `corte_caja.php` y `consultar_cortes.php`: cortes y consulta histórica.
 - `reportes.php` y `exportar_reporte.php`: reportes operativos.

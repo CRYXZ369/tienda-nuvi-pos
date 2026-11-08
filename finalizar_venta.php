@@ -20,7 +20,8 @@ if (!$data || empty($data['productos']) || !is_array($data['productos'])) {
     echo json_encode(['error' => 'Carrito vacío o datos inválidos']);
     exit;
 }
-if (isset($data['id_usuario_origen']) && (int) $data['id_usuario_origen'] !== (int) $_SESSION['id_usuario']) {
+if (isset($data['id_usuario_origen']) && (int) $data['id_usuario_origen'] !== (int) $_SESSION['id_usuario']
+    && (empty($data['revisar_emergencia']) || !in_array($_SESSION['rol'] ?? '', ['admin', 'supervisor'], true))) {
     http_response_code(409);
     echo json_encode(['error' => 'La cuenta cambió. Inicia sesión con la cuenta que preparó la venta.']);
     exit;
@@ -44,6 +45,28 @@ if ($claveIdempotencia !== '' && !nuviVentasSoportanIdempotencia($conexion)) {
     exit;
 }
 $usarIdempotencia = $claveIdempotencia !== '';
+$revisarEmergencia = !empty($data['revisar_emergencia']);
+if ($revisarEmergencia && (empty($data['venta_emergencia']) || !$usarIdempotencia
+    || !str_starts_with($claveIdempotencia, 'emergencia_')
+    || !isset($data['id_usuario_origen']) || (int) $data['id_usuario_origen'] <= 0
+    || !in_array($_SESSION['rol'] ?? '', ['admin', 'supervisor'], true))) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Solo un administrador o supervisor puede revisar una venta de emergencia.']);
+    exit;
+}
+if ($revisarEmergencia) {
+    $idOrigen = (int) $data['id_usuario_origen'];
+    $verificarOrigen = mysqli_prepare($conexion, 'SELECT id FROM usuarios WHERE id = ? LIMIT 1');
+    mysqli_stmt_bind_param($verificarOrigen, 'i', $idOrigen);
+    mysqli_stmt_execute($verificarOrigen);
+    if (!mysqli_fetch_assoc(mysqli_stmt_get_result($verificarOrigen))) {
+        http_response_code(409);
+        echo json_encode(['error' => 'La cuenta que registró la venta ya no existe. Se requiere revisión manual.']);
+        exit;
+    }
+    $idUsuarioVenta = $idOrigen;
+    $nota_venta .= ' [Venta de emergencia revisada y autorizada por ' . $nombreCajero . ']';
+}
 if (!empty($data['venta_emergencia']) && $usarIdempotencia) {
     $ventaExistente = nuviObtenerVentaIdempotente($conexion, $claveIdempotencia);
     if ($ventaExistente) {
@@ -179,9 +202,21 @@ try {
             }
         }
     }
-    $ventaPreparada = nuviPrepararProductosVenta($conexion, $productos, true);
+    $preciosAutorizados = [];
+    if ($revisarEmergencia) {
+        foreach ($productosSolicitados as $producto) {
+            $id = (int) ($producto['id'] ?? 0);
+            $precio = $producto['precio'] ?? null;
+            if ($id <= 0 || !is_numeric($precio) || !is_finite((float) $precio) || (float) $precio <= 0
+                || (isset($preciosAutorizados[$id]) && abs($preciosAutorizados[$id] - (float) $precio) > 0.00001)) {
+                throw new Exception('Los precios de la venta pendiente no son válidos.');
+            }
+            $preciosAutorizados[$id] = (float) $precio;
+        }
+    }
+    $ventaPreparada = nuviPrepararProductosVenta($conexion, $productos, true, $preciosAutorizados);
     $productos = $ventaPreparada['productos'];
-    if (!empty($data['venta_emergencia'])) {
+    if (!empty($data['venta_emergencia']) && !$revisarEmergencia) {
         $preciosActuales = [];
         foreach ($productos as $producto) {
             $preciosActuales[(int) $producto['id']] = (float) $producto['precio'];
@@ -195,7 +230,9 @@ try {
         }
     }
     $total = $ventaPreparada['total'];
-    if ($totalSolicitado <= 0 || abs($totalSolicitado - $total) > 0.01) {
+    if ($totalSolicitado <= 0 || (!empty($data['venta_emergencia'])
+        ? abs($totalSolicitado - $total) > 0.00001
+        : abs($totalSolicitado - $total) > 0.01)) {
         throw new Exception('El precio cambió. Actualiza el carrito antes de cobrar.');
     }
 
@@ -256,9 +293,13 @@ try {
             }
             foreach (['comision_porcentaje', 'iva_porcentaje', 'cargo_fijo'] as $campo) {
                 if (!isset($terminalGuardada[$campo]) || !is_numeric($terminalGuardada[$campo])
-                    || abs((float) $terminalGuardada[$campo] - (float) $terminalTarjeta[$campo]) > 0.00001) {
+                    || !is_finite((float) $terminalGuardada[$campo]) || (float) $terminalGuardada[$campo] < 0
+                    || (!$revisarEmergencia && abs((float) $terminalGuardada[$campo] - (float) $terminalTarjeta[$campo]) > 0.00001)) {
                     throw new Exception('La configuración de la terminal cambió. La venta ya cobrada necesita revisión.');
                 }
+            }
+            if ($revisarEmergencia) {
+                $calculoTarjeta = nuviCalcularCobroTerminal($importeTarjeta, $terminalGuardada);
             }
             if (!isset($data['cobro_tarjeta_emergencia']) || !is_numeric($data['cobro_tarjeta_emergencia'])
                 || abs((float) $data['cobro_tarjeta_emergencia'] - $calculoTarjeta['monto_cobrado_tarjeta']) > 0.001) {
@@ -395,6 +436,7 @@ try {
             'terminal' => $terminalTarjeta['nombre'] ?? null,
             'cobrado_terminal' => $montoCobradoTarjeta,
             'pagos' => $pagosVenta,
+            'revision_emergencia' => $revisarEmergencia,
         ]
     );
     echo json_encode([
@@ -437,6 +479,7 @@ try {
         'El inventario no admite cantidades a granel',
         'La configuración de la terminal cambió',
         'El importe de la terminal no coincide',
+        'Los precios de la venta pendiente no son válidos',
         'Efectivo recibido',
         'pago mixto',
         'Un producto ya no existe',

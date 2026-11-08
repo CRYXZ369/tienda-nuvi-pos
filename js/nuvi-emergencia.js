@@ -162,6 +162,12 @@
         if (!idUsuario || !Array.isArray(productos) || !productos.length) {
             throw new Error('No hay un catálogo válido para preparar la caja de emergencia.');
         }
+        const respuesta = await solicitud('sesion_keepalive.php', { headers: { Accept: 'application/json' } });
+        if (!respuesta.ok) throw new Error('No se pudo verificar la cuenta que prepara la caja.');
+        const sesion = await respuesta.json();
+        if (Number(sesion.id_usuario) !== Number(idUsuario)) {
+            throw new Error('La cuenta cambió. Abre de nuevo la caja con la cuenta correcta.');
+        }
         await escribir(CATALOGO, {
             id: 'actual', id_usuario: idUsuario, nombre, productos, actualizado: new Date().toISOString()
         });
@@ -173,6 +179,10 @@
     async function pendientes(idUsuario) {
         return (await leer(VENTAS)).filter(venta => Number(venta.id_usuario) === Number(idUsuario))
             .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    }
+
+    async function todasPendientes() {
+        return (await leer(VENTAS)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     }
 
     async function otrasPendientes(idUsuario) {
@@ -226,6 +236,21 @@
         return { pendientes: (await pendientes(idUsuario)).length, errores };
     }
 
+    async function revisarVenta(venta) {
+        const respuestaSesion = await solicitud('sesion_keepalive.php', { headers: { Accept: 'application/json' } });
+        if (!respuestaSesion.ok) throw new Error('Inicia sesión con la cuenta de la venta.');
+        const sesion = await respuestaSesion.json();
+        if (!sesion.csrf_token) throw new Error('Inicia sesión como administrador o supervisor.');
+        const respuesta = await solicitud('finalizar_venta.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Nuvi-CSRF': sesion.csrf_token },
+            body: JSON.stringify({ ...venta.payload, id_usuario_origen: venta.id_usuario, revisar_emergencia: true })
+        });
+        const resultado = await respuesta.json();
+        if (!respuesta.ok || resultado.success !== true) throw new Error(resultado.message || resultado.error || `HTTP ${respuesta.status}`);
+        await escribir(VENTAS, venta.id, 'delete');
+    }
+
     function iniciarEnCaja(idUsuario) {
         const preparacion = document.createElement('div');
         preparacion.setAttribute('role', 'status');
@@ -256,7 +281,7 @@
                     ? `${resultado.pendientes} venta(s) de emergencia pendientes. ${resultado.errores.join(' ')} `
                     : '') + (otras ? `${otras} venta(s) de emergencia pertenecen a otra cuenta; inicia sesión con esa cuenta para enviarlas. ` : '')
                     + (resultado.pendientes || otras ? 'No borres los datos de esta tablet.' : '');
-                if (resultado.pendientes) {
+                if (resultado.pendientes || otras) {
                     const enlace = document.createElement('a');
                     enlace.href = 'offline.html';
                     enlace.textContent = ' Ver detalle de ventas pendientes';
@@ -280,5 +305,5 @@
         setInterval(actualizar, 30000);
     }
 
-    window.NuviEmergencia = { guardarCatalogo, leerCatalogo: () => leer(CATALOGO, 'actual'), pendientes, otrasPendientes, escribirVenta: venta => escribir(VENTAS, venta, 'add'), claveVenta, sincronizar, iniciarEnCaja, esGranel, iconoGranel, crearArbolGranel };
+    window.NuviEmergencia = { guardarCatalogo, leerCatalogo: () => leer(CATALOGO, 'actual'), pendientes, todasPendientes, otrasPendientes, escribirVenta: venta => escribir(VENTAS, venta, 'add'), claveVenta, sincronizar, revisarVenta, iniciarEnCaja, esGranel, iconoGranel, crearArbolGranel };
 })();
