@@ -92,6 +92,9 @@ servidor confirme su registro.
   El día operativo va de las 06:00 a las 06:00 del día siguiente y usa el
   reloj de la base de datos, igual que la fecha principal de las ventas.
 - `reportes.php` y `exportar_reporte.php`: reportes operativos.
+  El reporte de ventas de emergencia selecciona por fecha de recepción y
+  muestra la hora UTC declarada por la tablet para revisión manual; no ajusta
+  cortes históricos y no incluye ventas aún pendientes en el dispositivo.
 - `ventas_utils.php` y `pagos_venta_utils.php`: validación de ventas y pagos.
 - `documentacion/`: guías generales de operación y hardware.
 

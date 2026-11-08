@@ -11,6 +11,7 @@ $mensajes = [
     'periodo_demasiado_largo' => 'Para mantener el sistema ágil, exporta periodos de hasta dos años por archivo.',
     'tipo_invalido' => 'El reporte solicitado no existe.',
     'estructura_pendiente' => 'Ese reporte requiere preparar primero la estructura de abastecimiento.',
+    'estructura_emergencia' => 'Ese reporte requiere preparar primero la sincronización de emergencia.',
     'error_reporte' => 'No se pudo generar el reporte. Inténtalo de nuevo o avisa a administración.',
 ];
 ?>
@@ -66,6 +67,7 @@ $mensajes = [
             <section class="reportes" aria-label="Tipo de reporte">
                 <label class="reporte"><input type="radio" name="tipo" value="ventas" checked><h2>🛒 Ventas detalladas</h2><p>Folio, fecha, cajero, pago recibido, cambio, pagos mixtos, terminal y nota.</p><small>Aplica rango de fechas</small></label>
                 <label class="reporte"><input type="radio" name="tipo" value="resumen_ventas"><h2>📈 Resumen diario</h2><p>Ventas por día, efectivo, tarjeta, transferencias, fiado, recargos y artículos vendidos.</p><small>Aplica rango de fechas</small></label>
+                <label class="reporte"><input type="radio" name="tipo" value="emergencia"><h2>🕒 Ventas de emergencia recibidas</h2><p>Compara la hora de recepción con la hora UTC registrada por la tablet, sin modificar cortes.</p><small>El rango selecciona por fecha de recepción</small></label>
                 <label class="reporte"><input type="radio" name="tipo" value="cortes"><h2>📊 Cortes de caja</h2><p>Fondos, ventas, gastos, inyecciones, contado, diferencia y observaciones.</p><small>Aplica rango de fechas</small></label>
                 <label class="reporte"><input type="radio" name="tipo" value="inventario"><h2>📦 Inventario actual</h2><p>Código, producto, marca/proveedor, unidad, existencias, costos y precios vigentes.</p><small>Fotografía actual</small></label>
                 <label class="reporte"><input type="radio" name="tipo" value="libreta"><h2>📒 Libreta digital</h2><p>Clientes, contacto, límite de crédito, saldo actual y estado de su cuenta.</p><small>Fotografía actual</small></label>
@@ -74,6 +76,7 @@ $mensajes = [
             <div class="acciones"><button type="submit">⬇️ Descargar CSV para Excel</button><a class="volver" href="consultar_cortes.php">← Volver al historial</a></div>
         </form>
         <p class="nota"><strong>Privacidad:</strong> estos archivos contienen datos operativos de la tienda. Guárdalos sólo en equipos autorizados y no los compartas por canales públicos.</p>
+        <p class="nota"><strong>Revisión de emergencia:</strong> el rango busca la fecha en que el servidor recibió cada venta, no la fecha en que se cobró. La hora de la tablet está en UTC y puede ser incorrecta si su reloj no estaba bien ajustado. Comprueba el corte y la diferencia antes de cualquier corrección; el reporte no modifica cortes ni mueve ventas entre días. Las ventas todavía pendientes solo están en la tablet.</p>
     </main>
 </body>
 </html>

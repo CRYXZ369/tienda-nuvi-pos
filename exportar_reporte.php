@@ -3,6 +3,7 @@ require_once('auth.php');
 tienePermiso(['admin', 'supervisor']);
 require_once('conexion.php');
 require_once('auditoria_utils.php');
+require_once('reporte_emergencia_utils.php');
 
 function reporteRedirigirError($codigo)
 {
@@ -45,7 +46,7 @@ function reporteCeldaCsv($valor)
     return $texto;
 }
 
-function reporteDescargarCsv($nombre, array $encabezados, $resultado)
+function reporteDescargarCsv($nombre, array $encabezados, $resultado, ?callable $transformar = null)
 {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $nombre . '.csv"');
@@ -54,6 +55,7 @@ function reporteDescargarCsv($nombre, array $encabezados, $resultado)
     fwrite($salida, "\xEF\xBB\xBF"); // UTF-8 para que Excel respete acentos.
     fputcsv($salida, $encabezados, ';');
     while ($fila = mysqli_fetch_assoc($resultado)) {
+        if ($transformar !== null) $fila = $transformar($fila);
         $valores = [];
         foreach ($encabezados as $clave) $valores[] = reporteCeldaCsv($fila[$clave] ?? '');
         fputcsv($salida, $valores, ';');
@@ -65,7 +67,7 @@ function reporteDescargarCsv($nombre, array $encabezados, $resultado)
 if (!isset($conexion) || !($conexion instanceof mysqli)) reporteRedirigirError('error_reporte');
 
 $tipo = trim((string) ($_GET['tipo'] ?? ''));
-$tipos = ['ventas', 'resumen_ventas', 'cortes', 'inventario', 'libreta', 'abastecimiento'];
+$tipos = ['ventas', 'resumen_ventas', 'emergencia', 'cortes', 'inventario', 'libreta', 'abastecimiento'];
 if (!in_array($tipo, $tipos, true)) reporteRedirigirError('tipo_invalido');
 
 $desde = trim((string) ($_GET['desde'] ?? date('Y-m-01')));
@@ -85,7 +87,8 @@ try {
     $encabezados = [];
     $nombre = 'nuvi_' . $tipo . '_' . $desde . '_a_' . $hasta;
 
-    if ($tipo === 'ventas' || $tipo === 'resumen_ventas') {
+    $transformar = null;
+    if ($tipo === 'ventas' || $tipo === 'resumen_ventas' || $tipo === 'emergencia') {
         $campoMetodo = reporteColumnaExiste($conexion, 'ventas', 'metodo_pago') ? "COALESCE(NULLIF(v.metodo_pago, ''), 'efectivo')" : "'efectivo'";
         $campoTerminal = reporteColumnaExiste($conexion, 'ventas', 'terminal_nombre') ? 'COALESCE(v.terminal_nombre, \'\')' : "''";
         $campoCobro = reporteColumnaExiste($conexion, 'ventas', 'monto_cobrado_tarjeta') ? 'COALESCE(v.monto_cobrado_tarjeta, \'\')' : "''";
@@ -143,7 +146,13 @@ try {
                 break;
             }
         }
-        if ($tipo === 'ventas') {
+        if ($tipo === 'emergencia') {
+            if (!reporteColumnaExiste($conexion, 'ventas', 'idempotency_key')) reporteRedirigirError('estructura_emergencia');
+            $encabezados = ['Venta', 'Recibida en servidor (hora base)', 'Hora tablet (UTC, sin verificar)', 'Estado hora tablet', 'Cajero', 'Método de pago', 'Total productos', 'Efectivo aplicado', 'Tarjeta aplicada', 'Transferencia', 'Otro', 'Nota'];
+            $sql = "SELECT v.id_venta AS `Venta`, v.fecha_venta AS `Recibida en servidor (hora base)`, $campoCajero AS `Cajero`, $campoMetodoReporte AS `Método de pago`, v.total AS `Total productos`, $campoEfectivoAplicado AS `Efectivo aplicado`, $campoTarjetaAplicada AS `Tarjeta aplicada`, $campoTransferenciaAplicada AS `Transferencia`, $campoOtroAplicado AS `Otro`, $campoNota AS `Nota`
+                    FROM ventas v{$joinUsuario}{$joinPagos} WHERE v.fecha_venta >= '$fechaDesde' AND v.fecha_venta <= '$fechaHasta' AND LEFT(v.idempotency_key, 11) = 'emergencia_' ORDER BY v.fecha_venta ASC, v.id_venta ASC";
+            $transformar = 'nuviFilaReporteEmergencia';
+        } elseif ($tipo === 'ventas') {
             $encabezados = ['Venta', 'Fecha y hora', 'Cajero', 'Método de pago', 'Total productos', 'Efectivo aplicado', 'Efectivo recibido', 'Cambio', 'Tarjeta aplicada', 'Transferencia', 'Otro', 'Cobrado en terminal', 'Recargo cliente', 'Terminal', 'Nota'];
             $sql = "SELECT v.id_venta AS `Venta`, v.fecha_venta AS `Fecha y hora`, $campoCajero AS `Cajero`, $campoMetodoReporte AS `Método de pago`, v.total AS `Total productos`, $campoEfectivoAplicado AS `Efectivo aplicado`, $campoEfectivoRecibido AS `Efectivo recibido`, $campoCambio AS `Cambio`, $campoTarjetaAplicada AS `Tarjeta aplicada`, $campoTransferenciaAplicada AS `Transferencia`, $campoOtroAplicado AS `Otro`, $campoCobroReporte AS `Cobrado en terminal`, $campoRecargoReporte AS `Recargo cliente`, $campoTerminalReporte AS `Terminal`, $campoNota AS `Nota`
                     FROM ventas v{$joinUsuario}{$joinPagos} WHERE v.fecha_venta >= '$fechaDesde' AND v.fecha_venta <= '$fechaHasta' ORDER BY v.fecha_venta ASC, v.id_venta ASC";
@@ -188,7 +197,7 @@ try {
 
     if (!$resultado) throw new RuntimeException(mysqli_error($conexion));
     nuviRegistrarAuditoria($conexion, 'reporte_exportado', 'reporte', null, 'Reporte exportado: ' . $tipo, ['desde' => $desde, 'hasta' => $hasta]);
-    reporteDescargarCsv($nombre, $encabezados, $resultado);
+    reporteDescargarCsv($nombre, $encabezados, $resultado, $transformar);
 } catch (Throwable $error) {
     error_log('exportar_reporte.php: ' . $error->getMessage());
     reporteRedirigirError('error_reporte');
