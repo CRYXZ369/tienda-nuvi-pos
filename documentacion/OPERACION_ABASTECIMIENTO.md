@@ -46,8 +46,10 @@ cerrar o reiniciar el navegador. La caja de emergencia es una pantalla independi
 cuando el servidor o la red se apagan. Antes de un apagón, abre
 la caja normal con HTTPS en la tablet y espera a que cargue el catálogo; la
 instalación debe tener un service worker activo y almacenamiento disponible.
-Si se pierde la conexión mientras estás en inventario, abre **Punto de venta**:
-la pantalla de emergencia debe aparecer tras unos segundos.
+Si se pierde la conexión, un aviso ofrece abrir la caja de emergencia en otra
+pestaña. La pantalla actual no se cierra, para conservar el carrito o los
+cambios de inventario sin guardar. Si el aviso indica que no está preparada,
+no se puede usar esa caja hasta prepararla con conexión.
 
 Las ventas quedan en IndexedDB en esa tablet, separadas de la cola anterior.
 Al volver el servidor, entra a la caja normal con la misma cuenta o usa
