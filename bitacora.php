@@ -61,9 +61,9 @@ $accionesPermitidas = [
     'libreta_abono', 'libreta_ajustada', 'libreta_recargo_diario', 'libreta_recargo_semanal', 'libreta_recargo_corregido_semanal', 'libreta_interes_simple', 'cliente_creado', 'cliente_actualizado', 'cliente_archivado', 'cliente_desarchivado',
     'corte_creado', 'corte_actualizado', 'terminal_creada', 'terminal_actualizada',
     'terminal_estado_actualizado', 'usuario_creado', 'usuario_actualizado', 'usuario_desactivado',
-    'reporte_exportado'
+    'reporte_exportado', 'error_navegador', 'comentario_error'
 ];
-$entidadesPermitidas = ['venta', 'producto', 'cliente', 'corte', 'terminal', 'usuario', 'reporte'];
+$entidadesPermitidas = ['venta', 'producto', 'cliente', 'corte', 'terminal', 'usuario', 'reporte', 'diagnostico'];
 $accion = in_array($_GET['accion'] ?? '', $accionesPermitidas, true) ? $_GET['accion'] : '';
 $entidad = in_array($_GET['entidad'] ?? '', $entidadesPermitidas, true) ? $_GET['entidad'] : '';
 $registros = [];

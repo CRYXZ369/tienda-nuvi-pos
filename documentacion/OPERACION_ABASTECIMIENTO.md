@@ -48,6 +48,7 @@ la caja normal con HTTPS en la tablet y espera a que cargue el catálogo; la
 instalación debe tener HTTPS confiable, un service worker activo y almacenamiento
 disponible. Comprueba en cada tablet la preparación, el apagón simulado y la
 sincronización antes de depender de esta función.
+
 Si se pierde la conexión, un aviso ofrece abrir la caja de emergencia en otra
 pestaña. La pantalla actual no se cierra, para conservar el carrito o los
 cambios de inventario sin guardar. En el punto de venta puedes cerrar el aviso
@@ -104,3 +105,31 @@ si son cuatro o menos; con cinco o más se agrupan en `Otros productos`.
 Si la tablet se queda sin batería o no estaba preparada, no se puede garantizar
 la operación. En `http://192.168.x.x` el service worker no es fiable: usa HTTPS
 confiable en la misma dirección de la tienda.
+
+## Diagnóstico de errores
+
+En las pantallas con encabezado de Nuvi se registran errores inesperados del
+navegador. También se detectan las respuestas fallidas y problemas de conexión
+al finalizar una venta, registrar un fiado o actualizar el inventario. En estos
+casos aparece un aviso discreto para explicar opcionalmente qué ocurrió.
+Administración consulta los registros en **Bitácora operativa**, filtrando el
+área **diagnostico**; la referencia relaciona el error con su comentario. La
+fecha de la bitácora es la de recepción y `fecha_dispositivo` indica cuándo
+ocurrió según el reloj del dispositivo.
+
+Para proteger la información, no se registran automáticamente carritos, valores
+editados, contraseñas, tokens, datos de pago ni respuestas completas. Para
+inventario se conserva el ID del producto y el campo, y algunos errores se
+clasifican con códigos como `CSRF_INVALID`. No escribas información sensible o
+personal en la explicación. Los errores internos de PHP siguen en el log del
+servidor; no todos los errores capturados por código, de la caja de emergencia,
+ni una pantalla que no llegó a cargar pueden registrarse desde el navegador.
+
+Si no hay servidor, el reporte queda pendiente en el almacenamiento local de
+esa cuenta y se reintenta al recuperar la conexión o abrir una pantalla de
+Nuvi con la misma cuenta. Se conservan hasta 50 reportes por cuenta y dispositivo;
+si el almacenamiento está lleno o deshabilitado, el aviso indica que no se
+pudo guardar. Estos reportes son independientes de las ventas offline y pueden
+perderse si se borran los datos del navegador. La bitácora debe estar preparada
+desde Configuración de terminales; si falla, el reporte permanece pendiente y
+se registra el fallo en el log de PHP. No borres datos de la PWA para probarlo.
