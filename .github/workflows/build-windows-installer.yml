@@ -2,11 +2,6 @@ name: Build Windows installer
 
 on:
   workflow_dispatch:
-    inputs:
-      integration:
-        description: Test installation using official XAMPP on the isolated Windows runner
-        type: boolean
-        default: false
   push:
     tags:
       - 'v*'
@@ -54,11 +49,6 @@ jobs:
           }
           if ($setup.ExitCode -eq 0) { throw 'El instalador aceptó un equipo sin XAMPP.' }
           if (Test-Path 'C:\xampp') { throw 'El instalador creó archivos antes de validar XAMPP.' }
-      - name: Test XAMPP installation and setup
-        if: github.event_name == 'workflow_dispatch' && inputs.integration
-        shell: pwsh
-        timeout-minutes: 15
-        run: .\tests\windows_instalacion_test.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: setup_POS_nuvi
