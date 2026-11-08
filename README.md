@@ -44,6 +44,8 @@ El instalador prepara Apache, PHP y MariaDB, crea una base de datos y un usuario
 SQL exclusivos, pide los datos del administrador y aplica las migraciones. No
 sobrescribe una carpeta de aplicación con contenido ni una base ya existente.
 La contraseña del administrador debe tener al menos 12 caracteres.
+La copia de instalación omite configuraciones locales conocidas, respaldos y
+registros; revisa también que tu paquete no contenga otros archivos privados.
 
 ## Instalación en Windows
 
@@ -87,6 +89,8 @@ administrador o supervisor requiere conexión y conserva la venta hasta que el
 servidor confirme su registro.
 - `consultar_productos.php` y `obtener_productos_criticos.php`: inventario.
 - `corte_caja.php` y `consultar_cortes.php`: cortes y consulta histórica.
+  El día operativo va de las 06:00 a las 06:00 del día siguiente y usa el
+  reloj de la base de datos, igual que la fecha principal de las ventas.
 - `reportes.php` y `exportar_reporte.php`: reportes operativos.
 - `ventas_utils.php` y `pagos_venta_utils.php`: validación de ventas y pagos.
 - `documentacion/`: guías generales de operación y hardware.

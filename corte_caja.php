@@ -4,6 +4,7 @@ include("conexion.php");
 require_once("app_header.php");
 require_once("comisiones_terminal.php");
 require_once("pagos_venta_utils.php");
+require_once("fecha_corte_utils.php");
 
 if (!isset($conexion) || !($conexion instanceof mysqli)) {
     die('Sin conexión a base de datos');
@@ -61,45 +62,15 @@ $ventas_fiado = 0;
 $ventas_otro = 0;
 $ventas_generales = 0;
 
-function nuviFechaCorteValida($fecha): ?string
-{
-    $texto = trim((string) $fecha);
-    if ($texto === '') {
-        return null;
-    }
-
-    $fechaObj = DateTime::createFromFormat('!Y-m-d', $texto);
-    $errores = DateTime::getLastErrors();
-    if (!$fechaObj || ($errores !== false && ($errores['warning_count'] > 0 || $errores['error_count'] > 0)) || $fechaObj->format('Y-m-d') !== $texto) {
-        return null;
-    }
-    return $fechaObj > new DateTime('today') ? null : $texto;
-}
-
-function nuviFechaOperativaActual(): string
-{
-    $fecha = new DateTime();
-    if ((int) $fecha->format('H') < 6) {
-        $fecha->modify('-1 day');
-    }
-    return $fecha->format('Y-m-d');
-}
-
-function nuviFechaOperativaDesdeCierre($fechaCierre): string
-{
-    $fecha = new DateTime((string) $fechaCierre);
-    if ((int) $fecha->format('H') < 6) {
-        $fecha->modify('-1 day');
-    }
-    return $fecha->format('Y-m-d');
-}
+$horaBaseDatos = nuviHoraBaseDatos($conexion);
+$hoyBaseDatos = substr($horaBaseDatos, 0, 10);
 
 // ============================================
 // LÓGICA PARA DETECTAR SI ES EDICIÓN O NUEVO
 // ============================================
 $id_editar = isset($_GET['editar_id']) ? intval($_GET['editar_id']) : null;
 $es_edicion = ($id_editar !== null);
-$fechaSolicitada = nuviFechaCorteValida($_GET['fecha_corte'] ?? '');
+$fechaSolicitada = nuviFechaCorteValida($_GET['fecha_corte'] ?? '', $hoyBaseDatos);
 
 if ($es_edicion) {
     // Si editamos, traemos los datos de la base de datos
@@ -113,13 +84,13 @@ if ($es_edicion) {
     $inyeccion_valor = $c['dinero_personal_inyeccion'];
     $real_valor = $c['monto_real_contado'];
     $notas_valor = $c['observaciones'];
-    $fechaOperativa = nuviFechaCorteValida($c['fecha_corte'] ?? '')
-        ?? nuviFechaOperativaDesdeCierre($c['fecha_cierre']);
+    $fechaOperativa = nuviFechaCorteValida($c['fecha_corte'] ?? '', $hoyBaseDatos)
+        ?? nuviFechaOperativaDesdeHora((string) $c['fecha_cierre']);
     $fechaOperativaDisplay = date_create_from_format('Y-m-d', $fechaOperativa)->format('d/m/Y');
 } else {
     // De madrugada, el valor predeterminado es el día que acaba de cerrar.
     // También se puede elegir otro día desde la pantalla, sin editar código.
-    $fechaOperativa = $fechaSolicitada ?? nuviFechaOperativaActual();
+    $fechaOperativa = $fechaSolicitada ?? nuviFechaOperativaDesdeHora($horaBaseDatos);
     $fechaOperativaDisplay = date_create_from_format('Y-m-d', $fechaOperativa)->format('d/m/Y');
 
     // Fondo sugerido (último cierre real)
@@ -145,8 +116,8 @@ $sql_ventas = "SELECT
                 $exprFiado AS total_fiado,
                 $exprOtro AS total_otro
             FROM ventas
-            WHERE (DATE(fecha_venta) = '$fechaOperativa' AND HOUR(fecha_venta) >= 6)
-               OR (DATE(fecha_venta) = DATE_ADD('$fechaOperativa', INTERVAL 1 DAY) AND HOUR(fecha_venta) < 6)";
+            WHERE fecha_venta >= '$fechaOperativa 06:00:00'
+              AND fecha_venta < DATE_ADD('$fechaOperativa 06:00:00', INTERVAL 1 DAY)";
 $res_ventas = mysqli_query($conexion, $sql_ventas);
 $ventas_metodo = $res_ventas ? mysqli_fetch_assoc($res_ventas) : [
     'total_general' => 0,
@@ -452,7 +423,7 @@ if ($categoriasRes) {
         <?php if (!$es_edicion): ?>
             <div class="selector-dia-corte">
                 <label for="fecha_corte">📅 Día que se está cerrando:</label>
-                <input id="fecha_corte" type="date" value="<?php echo htmlspecialchars($fechaOperativa); ?>" max="<?php echo date('Y-m-d'); ?>" onchange="window.location.href = 'corte_caja.php?fecha_corte=' + encodeURIComponent(this.value);">
+                <input id="fecha_corte" type="date" value="<?php echo htmlspecialchars($fechaOperativa); ?>" max="<?php echo htmlspecialchars($hoyBaseDatos); ?>" onchange="window.location.href = 'corte_caja.php?fecha_corte=' + encodeURIComponent(this.value);">
                 <small>Después de medianoche se propone el día anterior. Al cambiarlo se actualiza el resumen.</small>
             </div>
         <?php endif; ?>

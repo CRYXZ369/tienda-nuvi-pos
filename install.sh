@@ -18,6 +18,15 @@ if [[ ! -f "$SCRIPT_DIR/database/schema.sql" || ! "$DB_NAME" =~ ^[A-Za-z0-9_]+$ 
     exit 1
 fi
 
+APP_DIR_RESUELTO="$(realpath -m -- "$APP_DIR")"
+if [[ "$APP_DIR_RESUELTO" == "$SCRIPT_DIR" || "$APP_DIR_RESUELTO" == "$SCRIPT_DIR/"* ]]; then
+    printf 'La carpeta destino no puede estar dentro del paquete de instalación.\n' >&2
+    exit 1
+fi
+if [[ -e "$APP_DIR" && ! -d "$APP_DIR" ]]; then
+    printf 'La ruta de destino no es una carpeta: %s\n' "$APP_DIR" >&2
+    exit 1
+fi
 if [[ -e "$APP_DIR" ]] && find "$APP_DIR" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
     printf 'La carpeta destino ya existe y no está vacía: %s\n' "$APP_DIR" >&2
     exit 1
@@ -86,7 +95,7 @@ GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
 SQL
 
 mkdir -p "$APP_DIR"
-find "$SCRIPT_DIR" -mindepth 1 -maxdepth 1 ! -name .git ! -name dist -exec cp -a {} "$APP_DIR/" \;
+bash "$SCRIPT_DIR/tools/copiar_archivos_instalacion.sh" "$SCRIPT_DIR" "$APP_DIR"
 
 export NUVI_SETUP_DB_HOST=localhost
 export NUVI_SETUP_DB_USER="$DB_USER"

@@ -17,7 +17,7 @@ WizardStyle=modern
 LicenseFile={#SourceRoot}LICENSE
 
 [Files]
-Source: "{#SourceRoot}*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: ".git\*,dist\*,backups\*,logs\*,releases\*,recursos\*,RESPALDO UBUNTU\*,config\local.php,config\backup.local.env,config\ticket.local.php"
+Source: "{#SourceRoot}*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: ".git\*,dist\*,backups\*,logs\*,releases\*,recursos\*,RESPALDO UBUNTU\*,documentacion\historico\backup_innecesarios_2026-04-22\*,config\local.php,config\backup.local.env,config\ticket.local.php,.env*,tienda_nuvi.backup.sql"
 
 [Run]
 Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\installer\windows\install_windows.ps1"" -AppRoot ""{app}"""; Description: "Configurar base de datos y administrador"; Flags: waituntilterminated

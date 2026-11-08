@@ -2,6 +2,7 @@
 require_once('auth.php');
 require_once('conexion.php');
 require_once('auditoria_utils.php');
+require_once('fecha_corte_utils.php');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($conexion) || !($conexion instanceof mysqli)) {
     header('Location: corte_caja.php?estado=error');
@@ -20,24 +21,15 @@ function montoCorte($valor, string $campo, bool $permitirVacio = false): float
     return round((float) $normalizado, 2);
 }
 
-function fechaOperativaCorte($valor): string
+function fechaOperativaCorte($valor, string $horaBaseDatos): string
 {
     $fechaTexto = trim((string) $valor);
     if ($fechaTexto === '') {
-        $fecha = new DateTime();
-        if ((int) $fecha->format('H') < 6) {
-            $fecha->modify('-1 day');
-        }
-        return $fecha->format('Y-m-d');
+        return nuviFechaOperativaDesdeHora($horaBaseDatos);
     }
 
-    $fecha = DateTime::createFromFormat('!Y-m-d', $fechaTexto);
-    $errores = DateTime::getLastErrors();
-    if (!$fecha || ($errores !== false && ($errores['warning_count'] > 0 || $errores['error_count'] > 0)) || $fecha->format('Y-m-d') !== $fechaTexto) {
+    if (nuviFechaCorteValida($fechaTexto, substr($horaBaseDatos, 0, 10)) === null) {
         throw new InvalidArgumentException('El día del corte no es válido.');
-    }
-    if ($fecha > new DateTime('today')) {
-        throw new InvalidArgumentException('No se puede registrar un corte de una fecha futura.');
     }
     return $fechaTexto;
 }
@@ -66,7 +58,7 @@ try {
     $gastosTotal = montoCorte($_POST['gastos_total'] ?? 0, 'gastos');
     $dineroReal = montoCorte($_POST['dinero_real'] ?? '', 'dinero real');
     $notas = mb_substr(trim((string) ($_POST['notas'] ?? '')), 0, 1000);
-    $fechaCorte = fechaOperativaCorte($_POST['fecha_corte'] ?? '');
+    $fechaCorte = fechaOperativaCorte($_POST['fecha_corte'] ?? '', nuviHoraBaseDatos($conexion));
     $tieneFechaCorte = corteTieneFechaOperativa($conexion);
 
     $esperado = round(($montoInicial + $ventasSistema + $dineroPersonal) - $gastosTotal, 2);
