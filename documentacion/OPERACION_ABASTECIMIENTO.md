@@ -50,9 +50,19 @@ disponible. Comprueba en cada tablet la preparación, el apagón simulado y la
 sincronización antes de depender de esta función.
 Si se pierde la conexión, un aviso ofrece abrir la caja de emergencia en otra
 pestaña. La pantalla actual no se cierra, para conservar el carrito o los
-cambios de inventario sin guardar. Si el aviso indica que no está preparada,
+cambios de inventario sin guardar. En el punto de venta puedes cerrar el aviso
+y continuar en la caja normal si sigue funcionando. Si el aviso indica que no está preparada,
 no se puede usar esa caja hasta prepararla con conexión. Al navegar, también se
 abre la pantalla de emergencia si el servidor responde con un error 5xx.
+
+En la caja de emergencia, un código exacto se agrega con un escaneo, incluso
+si el lector no envía Enter; los productos a granel abren la selección de
+importe o peso. El indicador rojo señala que el servidor o la base de datos no
+están disponibles; amarillo indica que hay que revisar la sesión o la cuenta;
+verde confirma que la sesión y una consulta a la base responden. Revisa las
+ventas pendientes antes de volver a la caja normal: el carrito que aún no
+guardaste no se transfiere automáticamente. El indicador se actualiza al
+regresar a la pantalla y aproximadamente cada 15 segundos.
 
 Las ventas quedan en IndexedDB en esa tablet, separadas de la cola anterior.
 Al volver el servidor, entra a la caja normal con la misma cuenta o usa

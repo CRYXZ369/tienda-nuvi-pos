@@ -1,5 +1,5 @@
 /* La caja de emergencia es estática; nunca se guardan páginas autenticadas. */
-const CACHE = 'nuvi-pwa-shell-v17';
+const CACHE = 'nuvi-pwa-shell-v20';
 const OFFLINE_URL = new URL('offline.html', self.registration.scope).href;
 const SHELL = [
     OFFLINE_URL,

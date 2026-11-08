@@ -91,6 +91,8 @@
             return;
         }
         if (NuviEmergencia.esGranel(producto)) {
+            buscar.value = '';
+            $('resultados').replaceChildren();
             productoGranel = producto;
             $('granel-seleccion').textContent = `${NuviEmergencia.iconoGranel(producto)} ${producto.nombre} · ${dinero(Math.round(Number(producto.precio_venta) * 100))}/${producto.unidad_medida}`;
             $('granel-tipo').value = 'importe';
@@ -187,29 +189,58 @@
         return encontrados;
     }
 
-    buscar.addEventListener('input', resultados);
+    let esperaCodigo;
+    function buscarCodigo(codigo) {
+        return catalogo && catalogo.productos.find(item => String(item.codigo_barras || '') === codigo);
+    }
+    buscar.addEventListener('input', () => {
+        resultados();
+        clearTimeout(esperaCodigo);
+        const codigo = buscar.value.trim();
+        if (!codigo) return;
+        esperaCodigo = setTimeout(() => {
+            if (buscar.value.trim() !== codigo || guardando) return;
+            const producto = buscarCodigo(codigo);
+            if (producto) agregar(producto);
+        }, 400);
+    });
     buscar.addEventListener('keydown', evento => {
         if (evento.key !== 'Enter') return;
         evento.preventDefault();
+        clearTimeout(esperaCodigo);
         const codigo = buscar.value.trim();
-        const producto = catalogo && catalogo.productos.find(item => String(item.codigo_barras) === codigo);
+        if (!codigo) return;
+        const producto = buscarCodigo(codigo);
         if (producto) agregar(producto);
         else avisar('No se encontró ese código. Busca el producto por nombre.');
     });
     let lectura = '';
     let ultimaTecla = 0;
+    let esperaLectura;
     document.addEventListener('keydown', evento => {
-        if (evento.target === buscar || (evento.target instanceof HTMLInputElement && !evento.target.readOnly)
+        if (evento.target instanceof HTMLTextAreaElement
+            || evento.target instanceof HTMLSelectElement || evento.target.isContentEditable
+            || (evento.target instanceof HTMLInputElement && evento.target !== buscar && !evento.target.readOnly)
             || evento.ctrlKey || evento.altKey || evento.metaKey || evento.isComposing) return;
         const ahora = performance.now();
         if (/^\d$/.test(evento.key)) {
             lectura = ahora - ultimaTecla <= 260 ? lectura + evento.key : evento.key;
             ultimaTecla = ahora;
             if (lectura.length > 32) lectura = '';
+            clearTimeout(esperaLectura);
+            esperaLectura = setTimeout(() => {
+                const codigo = lectura;
+                lectura = '';
+                const producto = codigo.length >= 4 && buscarCodigo(codigo);
+                if (producto && !guardando
+                    && (evento.target !== buscar || buscar.value.endsWith(codigo))) agregar(producto);
+            }, 400);
             return;
         }
-        if (evento.key === 'Enter' && ahora - ultimaTecla <= 260 && lectura.length >= 8 && catalogo) {
-            const producto = catalogo.productos.find(item => String(item.codigo_barras) === lectura);
+        clearTimeout(esperaLectura);
+        if (evento.key === 'Enter' && ahora - ultimaTecla <= 260 && catalogo
+            && (lectura.length >= 8 || (lectura.length >= 4 && buscarCodigo(lectura)))) {
+            const producto = buscarCodigo(lectura);
             evento.preventDefault();
             evento.stopPropagation();
             if (producto) agregar(producto);
@@ -288,7 +319,7 @@
         });
     }
 
-    async function sincronizar() {
+    async function sincronizar(silenciosa = false) {
         if (!catalogo || sincronizando) return;
         sincronizando = true;
         $('sincronizar').disabled = true;
@@ -296,7 +327,7 @@
             const resultado = await NuviEmergencia.sincronizar(catalogo.id_usuario);
             await mostrarPendientes();
             if (resultado.errores.length) avisar(resultado.errores.join('\n'));
-            else if (!resultado.pendientes) avisar('No hay ventas de emergencia pendientes.');
+            else if (!resultado.pendientes && !silenciosa) avisar('No hay ventas de emergencia pendientes.');
         } catch (error) {
             avisar('No se pudieron revisar las ventas: ' + error.message);
         } finally {
@@ -362,8 +393,60 @@
         }
     });
 
-    $('sincronizar').addEventListener('click', sincronizar);
-    window.addEventListener('online', sincronizar);
+    $('sincronizar').addEventListener('click', () => sincronizar());
+    window.addEventListener('online', () => sincronizar(true));
+    let comprobandoConexion = false;
+    let conexionLista = false;
+    async function comprobarConexion() {
+        if (comprobandoConexion) return;
+        comprobandoConexion = true;
+        const controlador = new AbortController();
+        const timer = setTimeout(() => controlador.abort(), 5000);
+        let estado = 'rojo';
+        let texto = 'Sin conexión con el servidor. Sigue usando esta caja.';
+        try {
+            const respuesta = await fetch('estado_caja.php', {
+                cache: 'no-store', credentials: 'same-origin',
+                headers: { Accept: 'application/json' }, signal: controlador.signal
+            });
+            if (respuesta.status === 401) {
+                estado = 'amarillo';
+                texto = 'Servidor disponible, pero falta iniciar sesión para volver a la caja normal.';
+            } else if (respuesta.ok) {
+                const datos = await respuesta.json();
+                if (datos.success !== true || !Number.isInteger(Number(datos.id_usuario)) || Number(datos.id_usuario) <= 0) {
+                    throw new Error('Respuesta de estado inválida.');
+                }
+                if (!catalogo) {
+                    estado = 'amarillo';
+                    texto = 'Servidor disponible. Comprueba el catálogo y las ventas pendientes antes de volver.';
+                } else if (Number(datos.id_usuario) !== Number(catalogo.id_usuario)) {
+                    estado = 'amarillo';
+                    texto = 'Servidor disponible, pero la cuenta cambió. Revisa las ventas pendientes antes de volver.';
+                } else {
+                    estado = 'verde';
+                    texto = 'Servidor y sesión disponibles. Puedes volver a la caja normal; revisa las ventas pendientes.';
+                    if (!conexionLista) sincronizar(true);
+                }
+            } else {
+                texto = 'El servidor no está listo. Sigue usando esta caja y vuelve a comprobar.';
+            }
+        } catch (error) {
+            console.warn('No se pudo comprobar la conexión de la caja:', error);
+        } finally {
+            clearTimeout(timer);
+            const indicador = $('conexion');
+            indicador.className = `conexion ${estado}`;
+            indicador.textContent = texto;
+            conexionLista = estado === 'verde';
+            comprobandoConexion = false;
+        }
+    }
+    window.addEventListener('online', comprobarConexion);
+    window.addEventListener('offline', comprobarConexion);
+    window.addEventListener('focus', comprobarConexion);
+    setInterval(comprobarConexion, 15000);
+    comprobarConexion();
     window.addEventListener('beforeunload', evento => {
         if (!carrito.size && !guardando) return;
         evento.preventDefault();
@@ -376,6 +459,7 @@
             throw new Error('Esta tablet aún no está preparada. Abre la caja normal con conexión antes de un apagón.');
         }
         catalogo = guardado;
+        comprobarConexion();
         try {
             const cache = JSON.parse(localStorage.getItem('nuvi_terminales_cache_v1') || 'null');
             if (cache && cache.data && (cache.data.configuracion_lista === true || cache.data.configuracion_lista === 1 || cache.data.configuracion_lista === '1') && Array.isArray(cache.data.terminales)) {
@@ -397,7 +481,7 @@
         await mostrarPendientes();
         renderizar();
         buscar.focus();
-        sincronizar();
+        sincronizar(true);
     }).catch(error => {
         $('estado').textContent = 'Caja de emergencia no disponible: ' + error.message;
         $('sincronizar').disabled = true;

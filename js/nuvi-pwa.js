@@ -57,7 +57,13 @@
         enlace.rel = 'noopener';
         enlace.textContent = 'Abrir caja de emergencia';
         enlace.style.cssText = 'display:inline-block;margin:.5rem;padding:.7rem;background:#684400;color:white;border-radius:.5rem';
-        aviso.append(texto, enlace);
+        const cerrar = document.createElement('button');
+        cerrar.type = 'button';
+        cerrar.textContent = 'Seguir en esta pantalla';
+        cerrar.style.cssText = 'margin:.5rem;padding:.7rem;background:white;color:#3d2c00;border:1px solid #684400;border-radius:.5rem;font:inherit;cursor:pointer';
+        let descartado = false;
+        cerrar.addEventListener('click', () => { descartado = true; aviso.hidden = true; });
+        aviso.append(texto, enlace, cerrar);
         document.body.append(aviso);
 
         let comprobando = false;
@@ -72,6 +78,7 @@
                 });
                 if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
                 aviso.hidden = true;
+                descartado = false;
             } catch (error) {
                 let preparada = false;
                 try {
@@ -86,7 +93,7 @@
                     ? 'Sin conexión con el servidor. Conserva esta pantalla si tienes cambios sin guardar. '
                     : 'Sin conexión con el servidor. La caja de emergencia no está preparada en este dispositivo.';
                 enlace.hidden = !preparada;
-                aviso.hidden = false;
+                aviso.hidden = descartado;
             } finally {
                 clearTimeout(timer);
                 comprobando = false;

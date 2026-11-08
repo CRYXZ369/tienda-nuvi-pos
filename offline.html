@@ -11,6 +11,10 @@
         main { max-width: 760px; margin: auto; }
         h1 { font-size: 1.6rem; margin: 0 0 10px; }
         .aviso { background: #fff7ed; border: 2px solid #f59e0b; border-radius: 10px; padding: 12px; }
+        .conexion { border: 2px solid; border-radius: 10px; padding: 12px; font-weight: 700; }
+        .conexion.rojo { background: #fee2e2; color: #991b1b; border-color: #b91c1c; }
+        .conexion.amarillo { background: #fef3c7; color: #78350f; border-color: #a16207; }
+        .conexion.verde { background: #dcfce7; color: #14532d; border-color: #15803d; }
         section { background: white; border-radius: 10px; padding: 16px; margin: 12px 0; }
         label { display: block; font-weight: 700; margin: 10px 0 5px; }
         input { width: 100%; font-size: 1.2rem; padding: 12px; border: 2px solid #64748b; border-radius: 8px; }
@@ -35,12 +39,13 @@
 <main>
     <h1>Caja de emergencia</h1>
     <div class="aviso">
-        <strong>Sin servidor: caja de emergencia.</strong> Las ventas se guardan en esta tablet y deben enviarse cuando vuelva la conexión.
+        <strong>Caja de emergencia.</strong> Las ventas se guardan en esta tablet y deben enviarse cuando vuelva la conexión.
         No borres los datos del navegador. La impresora y las demás cajas no están conectadas.
         No hay verificación de contraseña sin conexión; usa esta caja solo en dispositivos de confianza.
         Confirma el pago en la terminal o en la cuenta antes de guardar una venta con tarjeta o transferencia.
         En los reportes la fecha principal será la del envío; la fecha original queda en la nota.
     </div>
+    <p id="conexion" class="conexion amarillo" role="status">Comprobando conexión con el servidor…</p>
     <p id="estado" role="status">Comprobando la caja guardada…</p>
     <p id="mensaje" role="alert"></p>
     <section>
@@ -109,6 +114,7 @@
         <div id="detalle-pendientes"></div>
         <button id="sincronizar" type="button">Enviar ventas pendientes</button>
         <a class="volver" href="punto_de_venta.php">Volver a la caja normal</a>
+        <p>El carrito actual no se transfiere a la caja normal. Guarda o termina la venta antes de salir.</p>
         <p>Para enviar ventas automáticamente necesitas la misma cuenta y la conexión. Un administrador o supervisor puede revisar ventas pendientes de otras cuentas en esta tablet. No borres sus datos.</p>
     </section>
 </main>
