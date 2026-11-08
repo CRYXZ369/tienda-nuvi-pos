@@ -2,24 +2,114 @@
 <html lang="es-MX">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f766e">
-    <title>Sin conexión · Miscelánea Nuvi</title>
+    <title>Caja de emergencia · Nuvi</title>
     <style>
         * { box-sizing: border-box; }
-        body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: linear-gradient(145deg,#0f172a,#115e59); color: #f8fafc; font: 16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
-        main { width: min(100%,430px); padding: 30px 26px; text-align: center; background: rgba(15,23,42,.74); border: 1px solid rgba(255,255,255,.2); border-radius: 22px; box-shadow: 0 20px 50px rgba(0,0,0,.28); }
-        img { width: 78px; height: 78px; margin-bottom: 12px; border-radius: 18px; }
-        h1 { margin: 0 0 10px; font-size: 1.45rem; } p { margin: 0 0 20px; color: #dbeafe; }
-        button { width: 100%; min-height: 46px; border: 0; border-radius: 12px; background: #2dd4bf; color: #042f2e; font: inherit; font-weight: 800; cursor: pointer; }
+        body { margin: 0; padding: 16px; font: 18px system-ui, sans-serif; color: #172033; background: #f1f5f9; }
+        main { max-width: 760px; margin: auto; }
+        h1 { font-size: 1.6rem; margin: 0 0 10px; }
+        .aviso { background: #fff7ed; border: 2px solid #f59e0b; border-radius: 10px; padding: 12px; }
+        section { background: white; border-radius: 10px; padding: 16px; margin: 12px 0; }
+        label { display: block; font-weight: 700; margin: 10px 0 5px; }
+        input { width: 100%; font-size: 1.2rem; padding: 12px; border: 2px solid #64748b; border-radius: 8px; }
+        button, .volver { font: inherit; padding: 12px; min-height: 48px; border-radius: 8px; border: 1px solid #64748b; background: white; color: #172033; cursor: pointer; }
+        button:disabled { opacity: .5; cursor: not-allowed; }
+        .producto { display: block; width: 100%; text-align: left; margin-top: 6px; }
+        .granel-rapido { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+        .granel-rapido button { font-weight: 700; }
+        .granel-rapido .icono { display: block; font-size: 2rem; }
+        .fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #cbd5e1; }
+        .fila button { min-width: 48px; }
+        .total { font-size: 1.6rem; font-weight: 800; }
+        .cobrar { width: 100%; background: #166534; color: white; font-weight: 800; }
+        .teclado { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 420px; margin: 12px 0; }
+        .teclado button { min-height: 54px; font-size: 1.3rem; font-weight: 700; }
+        #mensaje { white-space: pre-line; font-weight: 700; }
     </style>
+    <script defer src="js/nuvi-emergencia.js"></script>
+    <script defer src="js/caja-emergencia.js"></script>
 </head>
 <body>
-    <main>
-        <img src="assets/nuvi-pwa-192.png" alt="Nuvi">
-        <h1>Nuvi necesita conexión</h1>
-        <p>Para proteger inventario, cuentas fiadas y ventas, la caja sólo opera conectada al servidor.</p>
-        <button type="button" onclick="location.reload()">Reintentar conexión</button>
-    </main>
+<main>
+    <h1>Caja de emergencia</h1>
+    <div class="aviso">
+        <strong>Sin servidor: caja de emergencia.</strong> Las ventas se guardan en esta tablet y deben enviarse cuando vuelva la conexión.
+        No borres los datos del navegador. La impresora y las demás cajas no están conectadas.
+        No hay verificación de contraseña sin conexión; usa esta caja solo en dispositivos de confianza.
+        Confirma el pago en la terminal o en la cuenta antes de guardar una venta con tarjeta o transferencia.
+    </div>
+    <p id="estado" role="status">Comprobando la caja guardada…</p>
+    <p id="mensaje" role="alert"></p>
+    <section>
+        <label for="buscar">Escanea o busca un producto</label>
+        <input id="buscar" autocomplete="off" placeholder="Código o nombre">
+        <div id="resultados"></div>
+    </section>
+    <section>
+        <h2>Productos a granel</h2>
+        <p>Elige una categoría, el tipo y el producto.</p>
+        <div id="granel-rapido" class="granel-rapido"></div>
+        <div id="granel-formulario" hidden>
+            <p id="granel-seleccion"></p>
+            <label for="granel-tipo">¿Cómo vas a cobrar?</label>
+            <select id="granel-tipo"><option value="importe">Por importe ($)</option><option value="peso">Por peso o cantidad</option></select>
+            <label for="granel-cantidad" id="granel-etiqueta">Cantidad</label>
+            <input id="granel-cantidad" type="text" inputmode="decimal" placeholder="0.000">
+            <div class="teclado" aria-label="Teclado de cantidad">
+                <button type="button" data-peso="1">1</button><button type="button" data-peso="2">2</button><button type="button" data-peso="3">3</button>
+                <button type="button" data-peso="4">4</button><button type="button" data-peso="5">5</button><button type="button" data-peso="6">6</button>
+                <button type="button" data-peso="7">7</button><button type="button" data-peso="8">8</button><button type="button" data-peso="9">9</button>
+                <button type="button" data-peso=".">.</button><button type="button" data-peso="0">0</button><button type="button" data-peso="borrar" aria-label="Borrar último dígito de cantidad">⌫</button>
+                <button type="button" data-peso="limpiar" style="grid-column:span 3">Borrar cantidad</button>
+            </div>
+            <div id="granel-redondeo-grupo" hidden>
+            <label for="granel-redondeo">Importe a cobrar</label>
+            <select id="granel-redondeo">
+                <option value="exacto">Importe exacto</option>
+                <option value="abajo">Redondear hacia abajo</option>
+                <option value="arriba">Redondear hacia arriba</option>
+            </select>
+            </div>
+            <button type="button" id="granel-agregar">Agregar a la venta</button>
+            <button type="button" id="granel-cancelar">Cancelar</button>
+        </div>
+    </section>
+    <section>
+        <h2>Productos</h2>
+        <div id="carrito"></div>
+        <p class="total">Total: <span id="total">$0.00</span></p>
+        <label for="metodo">Forma de pago</label>
+        <select id="metodo"><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select>
+        <div id="tarjeta-grupo" hidden>
+            <label for="terminal">Terminal</label>
+            <select id="terminal"></select>
+            <p id="tarjeta-importe"></p>
+            <p>Escribe ese importe en la terminal y confirma que el pago fue aprobado antes de guardar.</p>
+        </div>
+        <div id="efectivo-grupo">
+        <label for="recibido">Efectivo recibido</label>
+        <input id="recibido" type="text" inputmode="none" autocomplete="off" placeholder="0.00" readonly>
+        <div class="teclado" aria-label="Teclado de efectivo">
+            <button type="button" data-tecla="1">1</button><button type="button" data-tecla="2">2</button><button type="button" data-tecla="3">3</button>
+            <button type="button" data-tecla="4">4</button><button type="button" data-tecla="5">5</button><button type="button" data-tecla="6">6</button>
+            <button type="button" data-tecla="7">7</button><button type="button" data-tecla="8">8</button><button type="button" data-tecla="9">9</button>
+            <button type="button" data-tecla=".">.</button><button type="button" data-tecla="0">0</button><button type="button" data-tecla="borrar" aria-label="Borrar último dígito">⌫</button>
+            <button type="button" data-tecla="limpiar" style="grid-column:span 3">Borrar cantidad</button>
+        </div>
+        <p id="cambio">Cambio: $0.00</p>
+        </div>
+        <button id="cobrar" class="cobrar" type="button" disabled>Guardar venta en esta tablet</button>
+    </section>
+    <section>
+        <h2>Ventas pendientes</h2>
+        <p id="pendientes">Comprobando…</p>
+        <div id="detalle-pendientes"></div>
+        <button id="sincronizar" type="button">Enviar ventas pendientes</button>
+        <a class="volver" href="punto_de_venta.php">Volver a la caja normal</a>
+        <p>Para enviar ventas necesitas la misma cuenta y la conexión al servidor. Si una venta necesita revisión, no borres los datos de la tablet.</p>
+    </section>
+</main>
 </body>
 </html>

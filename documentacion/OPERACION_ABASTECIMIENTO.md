@@ -42,7 +42,38 @@ cuando se pierde.
 
 La cola de ventas pendientes usa IndexedDB y migra automáticamente la cola
 anterior de localStorage. Esto conserva mejor ventas pendientes después de
-cerrar o reiniciar el navegador. La instalación PWA que permite abrir el POS
-sin red desde cero requiere HTTPS en la URL LAN; un service worker no es fiable
-en `http://192.168.x.x`. Hasta contar con HTTPS, conserva la pestaña abierta
-durante una caída y usa la URL LAN, no Tailscale.
+cerrar o reiniciar el navegador. La caja de emergencia es una pantalla independiente para registrar ventas
+cuando el servidor o la red se apagan. Antes de un apagón, abre
+la caja normal con HTTPS en la tablet y espera a que cargue el catálogo; la
+instalación debe tener un service worker activo y almacenamiento disponible.
+Si se pierde la conexión mientras estás en inventario, abre **Punto de venta**:
+la pantalla de emergencia debe aparecer tras unos segundos.
+
+Las ventas quedan en IndexedDB en esa tablet, separadas de la cola anterior.
+Al volver el servidor, entra a la caja normal con la misma cuenta o usa
+**Enviar ventas pendientes**. No borres datos del navegador ni desinstales la
+PWA mientras existan pendientes. El almacenamiento del navegador puede perderse;
+no reemplaza los respaldos. Si el catálogo o el precio cambiaron, la venta
+permanece pendiente y necesita revisión; nunca se descarta automáticamente.
+Todavía no existe un flujo para resolver y contabilizar esas ventas con el
+precio original; por ello esta versión no está lista para producción.
+La fecha y hora de la tablet quedan en la nota de la venta, mientras que la
+fecha principal del servidor corresponde a la sincronización.
+
+La caja de emergencia no verifica contraseñas sin servidor y utiliza la última
+cuenta que preparó el catálogo. Usa solo dispositivos de confianza. No conecta
+las demás cajas ni imprime tickets durante el apagón. Acepta efectivo, tarjeta
+y transferencia, pero no fiado ni pagos mixtos. Comprueba en la terminal que
+el pago con tarjeta fue aprobado y confirma las transferencias en la cuenta:
+esta pantalla no procesa pagos. Tarjeta requiere la configuración de terminales
+guardada antes del apagón; si cambia la comisión o la terminal deja de estar
+activa, la venta queda pendiente para revisión.
+Los productos a granel se agregan por importe (opción predeterminada) o por
+cantidad pesada (hasta tres decimales). La cantidad por importe se calcula
+dividiendo el importe entre el precio unitario; el inventario almacena tres
+decimales. Los accesos se agrupan automáticamente por categoría y tipo a partir
+del catálogo y no sustituyen al buscador. La base debe tener
+preparada la migración de cantidades decimales para poder sincronizarlos.
+Si la tablet se queda sin batería o no estaba preparada, no se puede garantizar
+la operación. En `http://192.168.x.x` el service worker no es fiable: usa HTTPS
+confiable en la misma dirección de la tienda.

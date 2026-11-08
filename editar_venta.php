@@ -190,12 +190,11 @@ try {
         exit;
     }
 
-    // La edición pasa por el mismo validador que una venta nueva: se usan el
-    // precio y el stock reales de la base de datos, con bloqueo de fila, para
-    // evitar totales manipulados o existencias negativas por dos cajas a la vez.
-    $ventaPreparada = nuviPrepararProductosVenta($conexion, $productos_nuevos);
+    // Las ventas normales editadas siguen la misma política de stock que una
+    // venta nueva. Las ventas fiadas no se editan por esta ruta.
+    $ventaPreparada = nuviPrepararProductosVenta($conexion, $productos_nuevos, true);
     $total_nuevo = $ventaPreparada['total'];
-    nuviGuardarDetallesYDescontarStock($conexion, $id_venta, $ventaPreparada['productos']);
+    nuviGuardarDetallesYDescontarStock($conexion, $id_venta, $ventaPreparada['productos'], true);
 
     if ($tieneMetodoPago) {
         $sql_update_total = "UPDATE ventas SET total = ?, metodo_pago = ? WHERE id_venta = ?";

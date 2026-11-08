@@ -35,6 +35,7 @@ include __DIR__ . '/../conexion.php';
 
 $q = isset($_GET['q']) ? trim($_GET['q']) : '';
 $includeInactive = isset($_GET['include_inactive']) && $_GET['include_inactive'] == '1' ? true : false;
+$stockNegativo = isset($_GET['stock_negativo']) && $_GET['stock_negativo'] === '1';
 try {
     if (!isset($conexion) || !$conexion) {
         throw new Exception('Sin conexión a base de datos');
@@ -61,9 +62,12 @@ try {
 
     if ($q === '') {
         $sql = "SELECT $camposSelect FROM productos";
+        $condicionesIniciales = [];
         if (!$includeInactive && $tieneActivo) {
-            $sql .= " WHERE (activo IS NULL OR activo = 1)";
+            $condicionesIniciales[] = '(activo IS NULL OR activo = 1)';
         }
+        if ($stockNegativo) $condicionesIniciales[] = 'stock < 0';
+        if ($condicionesIniciales) $sql .= ' WHERE ' . implode(' AND ', $condicionesIniciales);
         $sql .= " ORDER BY stock ASC, id ASC";
     } else {
         if (strlen($q) < 2) {
@@ -106,6 +110,7 @@ try {
         if (!$includeInactive && $tieneActivo) {
             $sql .= " AND (activo IS NULL OR activo = 1)";
         }
+        if ($stockNegativo) $sql .= ' AND stock < 0';
         $sql .= " ORDER BY stock ASC, id ASC LIMIT 50";
     }
 

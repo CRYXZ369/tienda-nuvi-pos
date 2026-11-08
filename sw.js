@@ -1,11 +1,10 @@
-/* Miscelánea Nuvi PWA.
- * No guarda pantallas, ventas ni respuestas de API: la caja siempre necesita
- * conexión al servidor para evitar ventas duplicadas o datos desactualizados.
- */
-const CACHE = 'nuvi-pwa-shell-v1';
+/* La caja de emergencia es estática; nunca se guardan páginas autenticadas. */
+const CACHE = 'nuvi-pwa-shell-v10';
 const OFFLINE_URL = new URL('offline.html', self.registration.scope).href;
 const SHELL = [
     OFFLINE_URL,
+    new URL('js/nuvi-emergencia.js', self.registration.scope).href,
+    new URL('js/caja-emergencia.js', self.registration.scope).href,
     new URL('assets/nuvi-pwa-192.png', self.registration.scope).href,
     new URL('assets/nuvi-pwa-512.png', self.registration.scope).href
 ];
@@ -29,9 +28,17 @@ self.addEventListener('fetch', (event) => {
     const request = event.request;
     if (request.method !== 'GET' || request.url.startsWith('chrome-extension:')) return;
 
-    // Las páginas PHP se piden siempre al servidor; si no hay red sólo se
-    // muestra el aviso. Nunca se sirven páginas autenticadas desde caché.
+    // Las páginas autenticadas siempre se piden al servidor y nunca se guardan.
     if (request.mode === 'navigate') {
-        event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        event.respondWith(fetch(request, { signal: controller.signal })
+            .catch(() => caches.match(OFFLINE_URL))
+            .finally(() => clearTimeout(timeout)));
+        return;
+    }
+    const url = new URL(request.url);
+    if (url.origin === self.location.origin && SHELL.includes(url.href)) {
+        event.respondWith(caches.match(request).then(cached => cached || fetch(request)));
     }
 });

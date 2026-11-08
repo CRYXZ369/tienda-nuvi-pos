@@ -530,6 +530,17 @@
             }
             html.nuvi-tema-oscuro #pago-mixto-grupo #mixto-efectivo-aplicado { color: #bfdbfe !important; }
 
+            .teclado-cobro { max-width: 420px; margin: 14px auto 0; }
+            .teclado-cobro p { margin: 0 0 8px; font-weight: 700; }
+            .teclado-cobro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+            .teclado-cobro button {
+                min-height: 56px; border: 2px solid #94a3b8; border-radius: 10px;
+                background: #fff; color: #0f172a; font-size: 1.4rem; font-weight: 700; cursor: pointer;
+            }
+            .teclado-cobro button:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+            html.nuvi-tema-oscuro .teclado-cobro button { background: #334155; color: #fff; border-color: #94a3b8; }
+            .campo-teclado-activo { outline: 3px solid #2563eb; outline-offset: 2px; }
+
             /* El editor se monta fuera del contenedor principal y su contenido
                se genera dinámicamente; estas reglas evitan celdas claras con
                texto claro en el tema oscuro. */
@@ -778,6 +789,8 @@
             <div id="panel-granel" style="display: none; background: #fff3cd; padding: 15px; border: 2px solid #ffeeba; border-radius: 8px; margin-bottom: 20px;">
                 <h3>⚖️ Registro de Granel</h3>
 
+                <p>Selecciona un producto:</p>
+                <div id="granel-accesos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px;"></div>
                 <label>Buscar Producto:</label>
                 <input type="text" id="buscar-granel" placeholder="Escribe el nombre del producto..." style="width: 100%; padding: 8px; margin-bottom: 10px;">
 
@@ -851,16 +864,18 @@
 
                 <div id="pago-mixto-grupo" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; margin:0 0 14px 0;">
                     <strong style="display:block; margin-bottom:8px; color:#1e3a8a;">Cobro mixto</strong>
-                    <label for="pago-mixto-efectivo"><strong>Efectivo recibido ($):</strong></label>
-                    <input type="number" id="pago-mixto-efectivo" min="0" step="0.01" placeholder="0.00" style="width:100%; padding:9px; font-size:1.05rem; border:2px solid #28a745; border-radius:5px; margin:5px 0 10px 0;">
+                    <label for="mixto-efectivo-parte"><strong>Parte de la venta en efectivo ($):</strong></label>
+                    <input type="text" id="mixto-efectivo-parte" inputmode="none" autocomplete="off" placeholder="0.00" style="width:100%; padding:9px; font-size:1.05rem; border:2px solid #28a745; border-radius:5px; margin:5px 0 10px 0;">
+                    <label for="pago-mixto-efectivo"><strong>Efectivo entregado ($, opcional):</strong></label>
+                    <input type="text" id="pago-mixto-efectivo" inputmode="none" autocomplete="off" placeholder="Igual a la parte en efectivo" style="width:100%; padding:9px; font-size:1.05rem; border:2px solid #28a745; border-radius:5px; margin:5px 0 10px 0;">
                     <label for="metodo-mixto-secundario"><strong>El resto se paga con:</strong></label>
                     <select id="metodo-mixto-secundario" style="width:100%; padding:9px; margin:5px 0 10px 0; border-radius:5px; border:1px solid #94a3b8;">
                         <option value="tarjeta">Tarjeta</option>
                         <option value="transferencia">Transferencia</option>
                         <option value="otro">Otro</option>
                     </select>
-                    <label for="monto-mixto-secundario"><strong>Importe con el segundo método ($):</strong></label>
-                    <input type="number" id="monto-mixto-secundario" min="0" step="0.01" placeholder="0.00" style="width:100%; padding:9px; font-size:1.05rem; border:2px solid #3b82f6; border-radius:5px; margin:5px 0 8px 0;">
+                    <label for="monto-mixto-secundario"><strong>Resto con el segundo método ($):</strong></label>
+                    <input type="number" id="monto-mixto-secundario" min="0" step="0.01" value="0.00" readonly style="width:100%; padding:9px; font-size:1.05rem; border:2px solid #3b82f6; border-radius:5px; margin:5px 0 8px 0;">
                     <p style="margin:7px 0 0; font-size:.94rem; color:#334155;">Efectivo aplicado a productos: <strong id="mixto-efectivo-aplicado">$0.00</strong></p>
                     <p style="margin:4px 0 0; font-size:.94rem; color:#334155;">Cambio a dar: <strong id="mixto-cambio">$0.00</strong></p>
                 </div>
@@ -880,13 +895,31 @@
                 </div>
 
                 <div id="efectivo-recibido-grupo">
-                    <label><strong>Efectivo Recibido ($):</strong></label>
-                    <input type="number" id="pago-con" step="0.01" placeholder="0.00" style="width: 100%; padding: 10px; font-size: 1.2rem; border: 2px solid #28a745; border-radius: 5px;">
+                    <label for="pago-con"><strong>Efectivo Recibido ($):</strong></label>
+                    <input type="text" id="pago-con" inputmode="none" autocomplete="off" placeholder="0.00" style="width: 100%; padding: 10px; font-size: 1.2rem; border: 2px solid #28a745; border-radius: 5px;">
 
                     <p style="font-size: 1.2rem; margin-top: 10px;">
                         <strong id="label-cambio">Pago exacto: </strong>
                         <span id="cambio-cliente" style="color: #6b7280; font-weight: bold;">$0.00</span>
                     </p>
+                </div>
+                <div id="teclado-cobro" class="teclado-cobro" aria-label="Teclado para introducir efectivo">
+                    <p id="teclado-cobro-destino" aria-live="polite">Escribir: efectivo recibido</p>
+                    <div class="teclado-cobro-grid">
+                        <button type="button" data-tecla-cobro="1">1</button>
+                        <button type="button" data-tecla-cobro="2">2</button>
+                        <button type="button" data-tecla-cobro="3">3</button>
+                        <button type="button" data-tecla-cobro="4">4</button>
+                        <button type="button" data-tecla-cobro="5">5</button>
+                        <button type="button" data-tecla-cobro="6">6</button>
+                        <button type="button" data-tecla-cobro="7">7</button>
+                        <button type="button" data-tecla-cobro="8">8</button>
+                        <button type="button" data-tecla-cobro="9">9</button>
+                        <button type="button" data-tecla-cobro="." aria-label="Punto decimal">.</button>
+                        <button type="button" data-tecla-cobro="0">0</button>
+                        <button type="button" data-tecla-cobro="borrar" aria-label="Borrar último dígito">⌫</button>
+                        <button type="button" data-tecla-cobro="limpiar" style="grid-column:span 3; font-size:1rem;">Borrar cantidad</button>
+                    </div>
                 </div>
             </div>
             <button id="btn-finalizar-venta" style="width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 20px;">
@@ -894,6 +927,7 @@
             </button>
         </div>
 
+        <script src="js/nuvi-emergencia.js?v=9"></script>
         <script>
             // ============================================
             // 🚀 ESTADO GLOBAL Y CONSTANTES
@@ -918,7 +952,7 @@
             const INTERVALO_MAXIMO_LECTOR_BLUETOOTH_MS = 260;
             const ESPERA_AUTOPROCESAR_LECTOR_MS = 85;
             const ID_USUARIO_ACTUAL = <?php echo (int) ($_SESSION['id_usuario'] ?? 0); ?>;
-            const NUVI_CSRF_TOKEN = <?php echo json_encode(nuviTokenCsrf()); ?>;
+            let NUVI_CSRF_TOKEN = <?php echo json_encode(nuviTokenCsrf()); ?>;
             const NUVI_CONFIG_TICKET = <?php echo json_encode($configTicket, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
             const POS_CATALOGO_CACHE_KEY = 'nuvi_pos_catalogo_cache_v2';
             const POS_CATALOGO_CACHE_TTL_MS = 1000 * 60 * 60 * 8;
@@ -964,6 +998,7 @@
                 notaVentaInput: document.getElementById('nota-venta'),
                 metodoPagoSelect: document.getElementById('metodo-pago'),
                 pagoConInput: document.getElementById('pago-con'),
+                pagoMixtoParteInput: document.getElementById('mixto-efectivo-parte'),
                 pagoMixtoGrupo: document.getElementById('pago-mixto-grupo'),
                 pagoMixtoEfectivoInput: document.getElementById('pago-mixto-efectivo'),
                 metodoMixtoSecundario: document.getElementById('metodo-mixto-secundario'),
@@ -1008,6 +1043,7 @@
                 comisionTerminalNombre: document.getElementById('comisionTerminalNombre'),
                 efectivoRecibidoGrupo: document.getElementById('efectivo-recibido-grupo')
             };
+            let campoTecladoCobro = DOM.pagoConInput;
 
             // ============================================
             // 🔄 PRECARGA DE PRODUCTOS
@@ -1065,6 +1101,7 @@
 
                 if (catalogoCache.length > 0) {
                     PRODUCTOS_LOCALES = normalizarCatalogo(catalogoCache);
+                    mostrarAccesosGranel();
                     seCargoDesdeCache = true;
                     logLector('Catalogo cargado desde cache local:', PRODUCTOS_LOCALES.length, 'productos');
                     revisarAlertasStock(PRODUCTOS_LOCALES);
@@ -1085,9 +1122,12 @@
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const productos = await response.json();
                     PRODUCTOS_LOCALES = normalizarCatalogo(productos);
+                    mostrarAccesosGranel();
                     console.log("✅ " + PRODUCTOS_LOCALES.length + " productos cargados.");
                     logLector('Catalogo precargado:', PRODUCTOS_LOCALES.length, 'productos');
                     guardarCatalogoCachePos(productos);
+                    await NuviEmergencia.guardarCatalogo(ID_USUARIO_ACTUAL, <?php echo json_encode((string) ($_SESSION['nombre'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, productos)
+                        .catch(error => console.error('No se pudo preparar la caja de emergencia:', error));
                     revisarAlertasStock(PRODUCTOS_LOCALES);
                     await nuvi_loadRemoteScores();
                 } catch (e) {
@@ -1398,7 +1438,7 @@
                 // El cobro se protege: una lectura ahí no puede sumar una línea
                 // a una venta que ya se está finalizando. El valor temporal se
                 // restaura al reconocer el código completo.
-                if (elemento.closest('#pago-con, #nota-venta, #metodo-pago, #terminal-pago')) {
+                if (elemento.closest('#pago-con, #mixto-efectivo-parte, #pago-mixto-efectivo, #nota-venta, #metodo-pago, #terminal-pago')) {
                     return 'protegido';
                 }
                 // Cuando granel está abierto, el lector sirve para localizar el
@@ -1732,9 +1772,12 @@
                 const esMixto = metodoPago === 'mixto';
                 const pago = parseFloat(DOM.pagoConInput.value) || 0;
                 const metodoSecundario = DOM.metodoMixtoSecundario ? DOM.metodoMixtoSecundario.value : 'tarjeta';
-                const montoSecundario = Math.max(0, parseFloat(DOM.montoMixtoSecundarioInput?.value) || 0);
-                const efectivoAplicadoMixto = Math.max(0, Math.round((total - montoSecundario) * 100) / 100);
-                const efectivoRecibidoMixto = Math.max(0, parseFloat(DOM.pagoMixtoEfectivoInput?.value) || 0);
+                const efectivoAplicadoMixto = Math.max(0, parseFloat(DOM.pagoMixtoParteInput.value) || 0);
+                const montoSecundario = Math.max(0, Math.round((total - efectivoAplicadoMixto) * 100) / 100);
+                const efectivoRecibidoMixto = DOM.pagoMixtoEfectivoInput.value.trim() === ''
+                    ? efectivoAplicadoMixto
+                    : Math.max(0, parseFloat(DOM.pagoMixtoEfectivoInput.value) || 0);
+                DOM.montoMixtoSecundarioInput.value = montoSecundario.toFixed(2);
                 const esTarjeta = metodoPago === 'tarjeta';
                 const usaTarjeta = esTarjeta || (esMixto && metodoSecundario === 'tarjeta');
                 const importeTarjeta = esTarjeta ? total : (usaTarjeta ? montoSecundario : 0);
@@ -1745,6 +1788,7 @@
                 if (DOM.pagoMixtoGrupo) {
                     DOM.pagoMixtoGrupo.style.display = esMixto ? 'block' : 'none';
                 }
+                document.getElementById('teclado-cobro').style.display = esEfectivo || esMixto ? 'block' : 'none';
                 if (DOM.terminalPagoGrupo) {
                     DOM.terminalPagoGrupo.style.display = usaTarjeta && NUVI_CONFIG_COMISIONES.terminales.length > 0 ? 'block' : 'none';
                 }
@@ -1853,6 +1897,15 @@
             // ============================================
             // ⚖️ MÓDULO: PANEL DE GRANEL
             // ============================================
+            function mostrarAccesosGranel() {
+                const contenedor = document.getElementById('granel-accesos');
+                if (!window.NuviEmergencia || !NuviEmergencia.crearArbolGranel) {
+                    contenedor.textContent = 'No se pudieron cargar los accesos. Usa el buscador.';
+                    return;
+                }
+                NuviEmergencia.crearArbolGranel(contenedor, PRODUCTOS_LOCALES, seleccionarProductoGranel);
+            }
+
             DOM.btnAbrirGranel.addEventListener('click', () => {
                 const estaAbierto = DOM.panelGranel.style.display !== 'none';
                 DOM.panelGranel.style.display = estaAbierto ? 'none' : 'block';
@@ -2153,6 +2206,9 @@
                 if (DOM.notaVentaInput) DOM.notaVentaInput.value = "";
                 if (DOM.metodoPagoSelect) DOM.metodoPagoSelect.value = "efectivo";
                 DOM.pagoConInput.value = "";
+                DOM.pagoMixtoParteInput.value = "";
+                DOM.pagoMixtoEfectivoInput.value = "";
+                seleccionarCampoTeclado(DOM.pagoConInput);
                 if (DOM.inputUniversal) {
                     DOM.inputUniversal.value = '';
                     ocultarSugerencias();
@@ -2517,7 +2573,7 @@
                             'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest'
                         }),
-                        body: JSON.stringify(payload),
+                        body: JSON.stringify({ ...payload, id_usuario_origen: ID_USUARIO_ACTUAL }),
                         signal: controller.signal,
                         credentials: 'same-origin'
                     });
@@ -2604,6 +2660,14 @@
                         if (respuesta.status === 401) {
                             nuvi_avisarSesionCaducada();
                             return false;
+                        }
+                        if (respuesta.ok) {
+                            const sesion = await respuesta.json();
+                            if (Number(sesion.id_usuario) !== ID_USUARIO_ACTUAL) {
+                                nuvi_avisarSesionCaducada();
+                                return false;
+                            }
+                            if (typeof sesion.csrf_token === 'string' && sesion.csrf_token) NUVI_CSRF_TOKEN = sesion.csrf_token;
                         }
                         return respuesta.ok;
                     } catch (error) {
@@ -2713,6 +2777,7 @@
                 setTimeout(nuvi_programarSyncOffline, 2000);
                 setTimeout(nuvi_mantenerSesion, 1200);
             });
+            NuviEmergencia.iniciarEnCaja(ID_USUARIO_ACTUAL);
 
             // ============================================
             // 🧾 ÚLTIMO TICKET E IMPRESIÓN DEL NAVEGADOR
@@ -3375,7 +3440,9 @@
                     const esMixto = metodoPago === 'mixto';
                     const metodoSecundario = DOM.metodoMixtoSecundario ? DOM.metodoMixtoSecundario.value : '';
                     const montoSecundario = Math.round((parseFloat(DOM.montoMixtoSecundarioInput?.value) || 0) * 100) / 100;
-                    const efectivoRecibidoMixto = Math.round((parseFloat(DOM.pagoMixtoEfectivoInput?.value) || 0) * 100) / 100;
+                    const efectivoRecibidoMixto = DOM.pagoMixtoEfectivoInput.value.trim() === ''
+                        ? Math.round((parseFloat(DOM.pagoMixtoParteInput.value) || 0) * 100) / 100
+                        : Math.round((parseFloat(DOM.pagoMixtoEfectivoInput.value) || 0) * 100) / 100;
                     const efectivoAplicadoMixto = Math.round((totalVenta - montoSecundario) * 100) / 100;
                     const usaTarjeta = metodoPago === 'tarjeta' || (esMixto && metodoSecundario === 'tarjeta');
                     const importeTarjeta = metodoPago === 'tarjeta' ? totalVenta : (usaTarjeta ? montoSecundario : 0);
@@ -3387,7 +3454,7 @@
                         return;
                     }
 
-                    if (metodoPago === 'efectivo' && (!Number.isFinite(pagoCon) || pagoCon < totalVenta)) {
+                    if (metodoPago === 'efectivo' && (!importeCobroValido(DOM.pagoConInput.value) || pagoCon < totalVenta)) {
                         mostrarError("El pago es menor al total");
                         return;
                     }
@@ -3397,11 +3464,11 @@
                             mostrarError('Selecciona el segundo método del pago mixto.');
                             return;
                         }
-                        if (!Number.isFinite(montoSecundario) || montoSecundario <= 0 || montoSecundario >= totalVenta) {
-                            mostrarError('En el pago mixto escribe una parte menor al total para el segundo método.');
+                        if (!importeCobroValido(DOM.pagoMixtoParteInput.value) || montoSecundario <= 0 || montoSecundario >= totalVenta) {
+                            mostrarError('Escribe una parte en efectivo mayor a cero y menor al total.');
                             return;
                         }
-                        if (!Number.isFinite(efectivoRecibidoMixto) || efectivoRecibidoMixto < efectivoAplicadoMixto) {
+                        if ((DOM.pagoMixtoEfectivoInput.value.trim() !== '' && !importeCobroValido(DOM.pagoMixtoEfectivoInput.value)) || efectivoRecibidoMixto < efectivoAplicadoMixto) {
                             mostrarError(`Falta efectivo: deben recibirse al menos $${efectivoAplicadoMixto.toFixed(2)}.`);
                             return;
                         }
@@ -3522,9 +3589,40 @@
                 }
             });
 
+            function importeCobroValido(valor) {
+                return /^\d+(?:\.\d{0,2})?$/.test(String(valor).trim());
+            }
+
+            function seleccionarCampoTeclado(campo) {
+                campoTecladoCobro = campo;
+                [DOM.pagoConInput, DOM.pagoMixtoParteInput, DOM.pagoMixtoEfectivoInput].forEach(input => {
+                    input.classList.toggle('campo-teclado-activo', input === campo);
+                });
+                const texto = campo === DOM.pagoMixtoParteInput ? 'parte de la venta en efectivo'
+                    : campo === DOM.pagoMixtoEfectivoInput ? 'efectivo entregado' : 'efectivo recibido';
+                document.getElementById('teclado-cobro-destino').textContent = `Escribir: ${texto}`;
+            }
+
+            [DOM.pagoConInput, DOM.pagoMixtoParteInput, DOM.pagoMixtoEfectivoInput].forEach(campo => {
+                campo.addEventListener('focus', () => seleccionarCampoTeclado(campo));
+                campo.addEventListener('click', () => seleccionarCampoTeclado(campo));
+            });
+            document.querySelectorAll('[data-tecla-cobro]').forEach(boton => {
+                boton.addEventListener('click', () => {
+                    const tecla = boton.dataset.teclaCobro;
+                    let valor = campoTecladoCobro.value;
+                    if (tecla === 'limpiar') valor = '';
+                    else if (tecla === 'borrar') valor = valor.slice(0, -1);
+                    else if (tecla === '.' && !valor.includes('.')) valor = (valor || '0') + '.';
+                    else if (/^\d$/.test(tecla) && valor.length < 12 && (!valor.includes('.') || valor.split('.')[1].length < 2)) valor += tecla;
+                    campoTecladoCobro.value = valor;
+                    campoTecladoCobro.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            });
+            seleccionarCampoTeclado(DOM.pagoConInput);
             DOM.pagoConInput.addEventListener('input', actualizarCambio);
+            DOM.pagoMixtoParteInput.addEventListener('input', actualizarCambio);
             if (DOM.pagoMixtoEfectivoInput) DOM.pagoMixtoEfectivoInput.addEventListener('input', actualizarCambio);
-            if (DOM.montoMixtoSecundarioInput) DOM.montoMixtoSecundarioInput.addEventListener('input', actualizarCambio);
             if (DOM.metodoMixtoSecundario) DOM.metodoMixtoSecundario.addEventListener('change', () => {
                 actualizarCambio();
                 if (DOM.metodoMixtoSecundario.value === 'tarjeta'
@@ -3542,8 +3640,8 @@
                 } else if (!DOM.pagoConInput.value || DOM.pagoConInput.value === '0.00') {
                     DOM.pagoConInput.value = "";
                 }
-                if (esEfectivo) DOM.pagoConInput.focus();
-                if (esMixto && DOM.pagoMixtoEfectivoInput) DOM.pagoMixtoEfectivoInput.focus();
+                if (esEfectivo) seleccionarCampoTeclado(DOM.pagoConInput);
+                if (esMixto) seleccionarCampoTeclado(DOM.pagoMixtoParteInput);
                 actualizarCambio();
                 // Reintenta sin recargar el POS si éste se abrió antes de que se
                 // configurara la terminal o si la red tardó en responder.

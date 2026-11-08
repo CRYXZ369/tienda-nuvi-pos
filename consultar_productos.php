@@ -211,8 +211,10 @@ $resultado = [];
             <input type="text" id="buscador" class="input-busqueda" placeholder="🔍 Busca por nombre, marca, categoría, código o ID (palabras en cualquier orden)..." autocomplete="off" spellcheck="false">
             <button id="btnRefrescarCache" class="btn-refrescar" title="Limpiar cache local y refrescar búsqueda">Refrescar cache</button>
             <button id="btnVerCriticos" class="btn-criticos" type="button">🔥 Productos Críticos</button>
+            <button id="btnStockNegativo" class="btn-criticos" type="button" aria-pressed="false">Ver existencias negativas</button>
             <a class="btn-abastecimiento" href="abastecimiento.php">📥 Abastecimiento</a>
         </div>
+        <p id="avisoStockNegativo" role="status" aria-live="polite" style="display:none; padding:12px; background:#fff7ed; color:#9a3412; border:1px solid #fdba74; border-radius:8px; font-weight:700;"></p>
         <div id="mensajeInventario" role="status" style="display:none; margin:-8px 0 16px; padding:10px 12px; border-radius:8px;"></div>
 
         <div class="contenedor-tabla">

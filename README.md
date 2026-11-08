@@ -48,11 +48,45 @@ clientes o ventas. Los archivos de configuración local están excluidos por
 ## Módulos principales
 
 - `punto_de_venta.php`: cobro, lector, granel y cola de ventas sin conexión.
+
+La caja de emergencia requiere abrir previamente el punto de venta con conexión
+en HTTPS, en la misma tablet y dirección de la tienda, y confirmar el aviso
+«Caja de emergencia preparada». Al fallar el servidor permite registrar ventas
+en efectivo, tarjeta o transferencia, y productos a granel por importe o peso.
+Los accesos agrupan automáticamente los productos por categoría y tipo, tanto
+en la caja normal como en la de emergencia; el buscador sigue disponible. La tarjeta
+requiere una configuración de terminal guardada previamente; confirma cada
+pago en la terminal o la cuenta antes de registrarlo. Las
+ventas quedan en el navegador de esa tablet: no borres sus datos ni desinstales
+la PWA hasta sincronizarlas con la misma cuenta. Una venta rechazada por cambios
+en el catálogo o precios sigue pendiente y requiere revisión; no debe cobrarse
+de nuevo. La fecha principal del reporte será la de sincronización, y la hora
+original se guarda en la nota. Consulta los límites y preparación en
+[Operación y abastecimiento](documentacion/OPERACION_ABASTECIMIENTO.md).
+
+La resolución de ventas pendientes rechazadas todavía no está implementada;
+esta versión de la caja de emergencia no está lista para producción.
 - `consultar_productos.php` y `obtener_productos_criticos.php`: inventario.
 - `corte_caja.php` y `consultar_cortes.php`: cortes y consulta histórica.
 - `reportes.php` y `exportar_reporte.php`: reportes operativos.
 - `ventas_utils.php` y `pagos_venta_utils.php`: validación de ventas y pagos.
 - `documentacion/`: guías generales de operación y hardware.
+
+En ventas normales se permite vender con existencias insuficientes: el stock
+puede quedar negativo y el inventario muestra los productos que deben revisarse.
+Las ventas fiadas siguen requiriendo stock suficiente. En el cobro mixto se
+introduce la parte en efectivo; el resto se calcula automáticamente y se puede
+indicar el efectivo entregado para calcular el cambio. Si se deja vacío, se
+considera que el cliente entregó exactamente la parte en efectivo. Cuando el
+segundo método es tarjeta, la comisión configurada se muestra por separado.
+
+El stock debe usar un tipo numérico con signo. Si una instalación antigua usa
+una columna `UNSIGNED`, se debe respaldar y ajustar su esquema antes de poder
+registrar una venta que deje existencias negativas.
+
+Para comprobar la política de stock en una base **de pruebas** migrada, cuyo
+nombre termine en `_test`, configura `NUVI_DB_*` y ejecuta
+`php tests/ventas_stock_test.php`. La prueba revierte sus datos.
 
 Antes de usarlo con datos reales, configura HTTPS y respaldos, y prueba los
 flujos en una instancia aislada. No expongas el POS directamente a Internet.

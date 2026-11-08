@@ -99,16 +99,25 @@ if (!function_exists('nuviPrepararProductosVenta')) {
      *
      * Debe llamarse dentro de una transacción.
      */
-    function nuviPrepararProductosVenta(mysqli $conexion, array $productos): array
+    function nuviPrepararProductosVenta(mysqli $conexion, array $productos, bool $permitirStockNegativo = false): array
     {
         if (empty($productos)) {
             throw new Exception('El carrito está vacío');
         }
 
         static $tieneActivo = null;
+        static $stockSinSigno = null;
         if ($tieneActivo === null) {
             $columna = mysqli_query($conexion, "SHOW COLUMNS FROM productos LIKE 'activo'");
             $tieneActivo = $columna && mysqli_num_rows($columna) > 0;
+        }
+        if ($permitirStockNegativo && $stockSinSigno === null) {
+            $definicionStock = mysqli_query($conexion, "SHOW COLUMNS FROM productos LIKE 'stock'");
+            $columnaStock = $definicionStock ? mysqli_fetch_assoc($definicionStock) : null;
+            if (!$columnaStock) {
+                throw new Exception('No se pudo verificar el formato del inventario.');
+            }
+            $stockSinSigno = stripos((string) $columnaStock['Type'], 'unsigned') !== false;
         }
 
         $campos = 'id, codigo_barras, nombre, precio_venta, precio_compra, stock, unidad_medida' . ($tieneActivo ? ', activo' : '');
@@ -187,8 +196,11 @@ if (!function_exists('nuviPrepararProductosVenta')) {
             $porLinea[$claveLinea]['cantidad'] += $cantidad;
             $stockSolicitado[$idProducto] = ($stockSolicitado[$idProducto] ?? 0.0) + $cantidad;
             $stockDisponible[$idProducto] = (float) $fila['stock'];
-            if ($stockSolicitado[$idProducto] > $stockDisponible[$idProducto] + 0.000001) {
+            if (!$permitirStockNegativo && $stockSolicitado[$idProducto] > $stockDisponible[$idProducto] + 0.000001) {
                 throw new Exception('Stock insuficiente para ' . $fila['nombre']);
+            }
+            if ($permitirStockNegativo && $stockSinSigno && $stockSolicitado[$idProducto] > $stockDisponible[$idProducto] + 0.000001) {
+                throw new Exception('El inventario aún no admite existencias negativas. Un administrador debe actualizar su estructura.');
             }
         }
 
@@ -219,8 +231,8 @@ if (!function_exists('nuviPrepararProductosVenta')) {
 }
 
 if (!function_exists('nuviGuardarDetallesYDescontarStock')) {
-    /** Guarda detalles y descuenta stock sin permitir valores negativos. */
-    function nuviGuardarDetallesYDescontarStock(mysqli $conexion, int $idVenta, array $productos): void
+    /** Guarda detalles y descuenta stock dentro de la transacción de venta. */
+    function nuviGuardarDetallesYDescontarStock(mysqli $conexion, int $idVenta, array $productos, bool $permitirStockNegativo = false): void
     {
         static $tieneSubtotalDetalle = null;
         static $tieneCostoUnitario = null;
@@ -244,7 +256,9 @@ if (!function_exists('nuviGuardarDetallesYDescontarStock')) {
         );
         $stmtStock = mysqli_prepare(
             $conexion,
-            'UPDATE productos SET stock = stock - ? WHERE id = ? AND stock >= ?'
+            $permitirStockNegativo
+                ? 'UPDATE productos SET stock = stock - ? WHERE id = ?'
+                : 'UPDATE productos SET stock = stock - ? WHERE id = ? AND stock >= ?'
         );
         if (!$stmtDetalle || !$stmtStock) {
             throw new Exception('No se pudo preparar el detalle de venta');
@@ -270,7 +284,11 @@ if (!function_exists('nuviGuardarDetallesYDescontarStock')) {
                 throw new Exception('No se pudo guardar el detalle de venta');
             }
 
-            mysqli_stmt_bind_param($stmtStock, 'did', $cantidad, $idProducto, $cantidad);
+            if ($permitirStockNegativo) {
+                mysqli_stmt_bind_param($stmtStock, 'di', $cantidad, $idProducto);
+            } else {
+                mysqli_stmt_bind_param($stmtStock, 'did', $cantidad, $idProducto, $cantidad);
+            }
             if (!mysqli_stmt_execute($stmtStock) || mysqli_stmt_affected_rows($stmtStock) !== 1) {
                 throw new Exception('El stock cambió antes de concluir la venta');
             }

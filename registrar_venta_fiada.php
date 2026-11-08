@@ -14,6 +14,11 @@ if (!$data || empty($data['id_cliente']) || empty($data['productos'])) {
     echo json_encode(["success" => false, "message" => "Datos incompletos"]);
     exit;
 }
+if (isset($data['id_usuario_origen']) && (int) $data['id_usuario_origen'] !== (int) $_SESSION['id_usuario']) {
+    http_response_code(409);
+    echo json_encode(['success' => false, 'message' => 'La cuenta cambió. Inicia sesión con la cuenta que preparó la venta.']);
+    exit;
+}
 
 // Obtener el ID del usuario autenticado
 $id_usuario = intval($_SESSION['id_usuario'] ?? 0);

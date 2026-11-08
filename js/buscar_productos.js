@@ -8,6 +8,7 @@ let renderToken = 0;
 const FETCH_TIMEOUT_MS = 6000;
 const INVENTARIO_CACHE_KEY = 'cache_buscar_productos_v2';
 let inventarioSearchRevision = 0;
+let mostrarSoloStockNegativo = false;
 const INVENTARIO_LONGITUDES_CODIGO = [8, 12, 13, 14];
 const INVENTARIO_INTERVALO_LECTOR_BLUETOOTH_MS = 260;
 const INVENTARIO_ESPERA_LECTOR_MS = 85;
@@ -250,6 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const restorePlaceholder = (el, original) => { if (el) el.placeholder = original; };
 
     if (document.getElementById('cuerpoTabla')) {
+        actualizarAvisoStockNegativo();
         cargarProductosInventario();
         const parametros = new URLSearchParams(window.location.search);
         const queryInicial = parametros.get('q') || '';
@@ -269,6 +271,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
+    const botonNegativos = document.getElementById('btnStockNegativo');
+    if (botonNegativos) botonNegativos.addEventListener('click', () => {
+        clearTimeout(timeout);
+        if (controller) controller.abort();
+        mostrarSoloStockNegativo = !mostrarSoloStockNegativo;
+        botonNegativos.setAttribute('aria-pressed', String(mostrarSoloStockNegativo));
+        botonNegativos.textContent = mostrarSoloStockNegativo ? 'Ver todo el inventario' : 'Ver existencias negativas';
+        input.value = '';
+        cargarProductosInventario();
+    });
 
     input.addEventListener('keyup', function() {
         clearTimeout(timeout);
@@ -299,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let cache = { queries: {}, updatedAt: 0 };
                 try { cache = cacheRaw ? JSON.parse(cacheRaw) : cache; } catch (e) {}
 
-                if (cache.queries && cache.queries[query]) {
+                if (!mostrarSoloStockNegativo && cache.queries && cache.queries[query]) {
                     const cached = cache.queries[query];
                     if (Array.isArray(cached.results)) {
                         // Si no pedimos inactivos, filtrar los resultados en cache
@@ -310,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         renderizarTabla(ordenarResultadosInventario(toShow, query));
                     }
-                } else {
+                } else if (!mostrarSoloStockNegativo) {
                     // If we have prefix entries, try to show quick local matches
                     const prefixMatches = Object.keys(cache.queries).filter(k => query.startsWith(k)).slice(-5);
                     for (const k of prefixMatches) {
@@ -326,7 +339,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const includeQuery = (window && window.BUSCAR_INCLUDE_INACTIVE) ? '&include_inactive=1' : '';
-                const res = await fetchWithTimeout(`api/buscar_productos.php?q=${encodeURIComponent(query)}${includeQuery}`, { signal });
+                const filtroStock = mostrarSoloStockNegativo ? '&stock_negativo=1' : '';
+                const res = await fetchWithTimeout(`api/buscar_productos.php?q=${encodeURIComponent(query)}${includeQuery}${filtroStock}`, { signal });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const payload = await res.json();
                 if (payload && payload.status === 'error') {
@@ -343,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Guardar en cache (simple, por query exacta)
                 cache.queries = cache.queries || {};
-                cache.queries[query] = { results: data, ts: Date.now() };
+                if (!mostrarSoloStockNegativo) cache.queries[query] = { results: data, ts: Date.now() };
                 cache.updatedAt = Date.now();
                 // Mantener solo últimas 100 queries
                 const keys = Object.keys(cache.queries).slice(-100);
@@ -400,10 +414,12 @@ async function cargarProductosInventario(query = '') {
     const revisionActual = ++inventarioSearchRevision;
     const includeInactive = (window && window.BUSCAR_INCLUDE_INACTIVE) ? '&include_inactive=1' : '';
     const q = encodeURIComponent(query.trim());
+    const filtroStock = mostrarSoloStockNegativo ? '&stock_negativo=1' : '';
     try {
-        const res = await fetchWithTimeout(`api/buscar_productos.php?q=${q}${includeInactive}`);
+        const res = await fetchWithTimeout(`api/buscar_productos.php?q=${q}${includeInactive}${filtroStock}`);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const payload = await res.json();
+        if (payload && payload.status === 'error') throw new Error(payload.message || 'Error al cargar inventario');
         const data = payload && payload.results ? payload.results : payload;
         if (revisionActual !== inventarioSearchRevision) return;
         const dataToRender = ordenarResultadosInventario(data || [], query);
@@ -412,6 +428,27 @@ async function cargarProductosInventario(query = '') {
         }
     } catch (err) {
         console.error('Error al cargar inventario:', err);
+        renderTablaError('No se pudo cargar el inventario. Revisa la conexión e inténtalo de nuevo.');
+    }
+}
+
+async function actualizarAvisoStockNegativo() {
+    const aviso = document.getElementById('avisoStockNegativo');
+    if (!aviso) return;
+    try {
+        const respuesta = await fetchWithTimeout('api/buscar_productos.php?stock_negativo=1');
+        if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
+        const datos = await respuesta.json();
+        if (datos.status !== 'ok' || !Array.isArray(datos.results)) throw new Error(datos.message || 'Respuesta inválida');
+        const cantidad = datos.results.length;
+        aviso.textContent = cantidad
+            ? `${cantidad} producto(s) tienen existencias negativas. Revisa y actualiza su inventario.`
+            : '';
+        aviso.style.display = cantidad ? 'block' : 'none';
+    } catch (error) {
+        console.error('No se pudo consultar el stock negativo:', error);
+        aviso.textContent = 'No se pudo comprobar si hay existencias negativas. Revisa la conexión.';
+        aviso.style.display = 'block';
     }
 }
 
@@ -482,6 +519,9 @@ function renderizarTabla(productos) {
         tdStock.contentEditable = true;
         tdStock.textContent = p.stock !== undefined ? p.stock : '';
         tdStock.title = `Stock registrado en ${p.unidad_medida || 'pza'}`;
+        tdStock.addEventListener('focus', () => {
+            tdStock.textContent = tdStock.dataset.stockGuardado;
+        });
         tdStock.addEventListener('blur', () => guardarEdicion(tdStock, p.id, 'stock'));
         const stockNum = parseFloat(p.stock) || 0;
         updateStockVisual(tdStock, stockNum);
@@ -596,7 +636,8 @@ function updateStockVisual(tdStock, stockNum) {
     const num = isNaN(stockNum) ? 0 : Number(stockNum);
     let color = '#10b981'; // verde por defecto
     let aviso = '';
-    if (num <= 0) { color = '#ef4444'; aviso = ' [AGOTADO]'; }
+    if (num < 0) { color = '#b91c1c'; aviso = ' [REVISAR EXISTENCIAS]'; }
+    else if (num === 0) { color = '#ef4444'; aviso = ' [AGOTADO]'; }
     else if (num <= 3) { color = '#f59e0b'; aviso = ' [SURTIR]'; }
 
     tdStock.innerHTML = '';
@@ -604,6 +645,7 @@ function updateStockVisual(tdStock, stockNum) {
     spanDot.style.display = 'inline-block'; spanDot.style.width = '10px'; spanDot.style.height = '10px'; spanDot.style.borderRadius = '50%'; spanDot.style.background = color; spanDot.style.marginRight = '8px';
     tdStock.appendChild(spanDot);
     tdStock.appendChild(document.createTextNode((isNaN(num) ? '' : num) + aviso));
+    tdStock.dataset.stockGuardado = String(num);
     tdStock.contentEditable = true;
 }
 
@@ -782,7 +824,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function guardarEdicion(elemento, id, columna) {
-    const valor = elemento.innerText.trim();
+    const valor = elemento.innerText.replace(/\s*\[(?:AGOTADO|SURTIR|REVISAR EXISTENCIAS)\]\s*$/, '').trim();
+    if (columna === 'stock') {
+        const anterior = Number(elemento.dataset.stockGuardado);
+        const normalizado = valor.replace(',', '.');
+        if (!/^\d+(?:\.\d+)?$/.test(normalizado)) {
+            if (Number(normalizado) !== anterior || anterior >= 0) {
+                alert('Escribe una cantidad de existencias válida, igual o mayor a cero.');
+            }
+            updateStockVisual(elemento, anterior);
+            return;
+        }
+        if (Number(normalizado) === anterior) {
+            updateStockVisual(elemento, anterior);
+            return;
+        }
+    }
     const formData = new FormData();
     formData.append('id', id);
     formData.append('columna', columna);
@@ -807,17 +864,21 @@ function guardarEdicion(elemento, id, columna) {
                 // Actualizar UI en tiempo real
                 const fila = elemento.closest('tr');
                 if (columna === 'stock') {
-                    const n = parseFloat(valor) || 0;
+                    const n = parseFloat(valor.replace(',', '.')) || 0;
                     updateStockVisual(elemento, n);
+                    actualizarAvisoStockNegativo();
+                    if (mostrarSoloStockNegativo && n >= 0 && fila) fila.remove();
                 }
                 // efecto de brillo para indicar actualización
                 flashRow(fila);
             } else {
                 alert('Error al guardar: ' + (json && json.message ? json.message : JSON.stringify(json)));
+                if (columna === 'stock') updateStockVisual(elemento, Number(elemento.dataset.stockGuardado));
             }
         }).catch(err => {
             console.error('Error al guardar edición:', err);
             alert('Error de conexión al guardar.');
+            if (columna === 'stock') updateStockVisual(elemento, Number(elemento.dataset.stockGuardado));
         });
 }
 

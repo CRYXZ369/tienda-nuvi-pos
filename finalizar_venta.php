@@ -20,6 +20,11 @@ if (!$data || empty($data['productos']) || !is_array($data['productos'])) {
     echo json_encode(['error' => 'Carrito vacío o datos inválidos']);
     exit;
 }
+if (isset($data['id_usuario_origen']) && (int) $data['id_usuario_origen'] !== (int) $_SESSION['id_usuario']) {
+    http_response_code(409);
+    echo json_encode(['error' => 'La cuenta cambió. Inicia sesión con la cuenta que preparó la venta.']);
+    exit;
+}
 
 $productos = $data['productos'];
 $totalSolicitado = (float) ($data['total'] ?? 0);
@@ -39,6 +44,18 @@ if ($claveIdempotencia !== '' && !nuviVentasSoportanIdempotencia($conexion)) {
     exit;
 }
 $usarIdempotencia = $claveIdempotencia !== '';
+if (!empty($data['venta_emergencia']) && $usarIdempotencia) {
+    $ventaExistente = nuviObtenerVentaIdempotente($conexion, $claveIdempotencia);
+    if ($ventaExistente) {
+        echo json_encode([
+            'success' => true,
+            'id_venta' => (int) $ventaExistente['id_venta'],
+            'total' => (float) $ventaExistente['total'],
+            'sincronizacion_repetida' => true,
+        ]);
+        exit;
+    }
+}
 
 if (!in_array($metodo_pago, ['efectivo', 'tarjeta', 'transferencia', 'otro', 'mixto'], true)) {
     echo json_encode(['error' => 'Método de pago inválido']);
@@ -71,7 +88,9 @@ if ($hayTarjeta) {
     $idTerminalPago = intval($data['id_terminal_pago'] ?? 0);
     $terminalTarjeta = nuviObtenerTerminalPago($conexion, $idTerminalPago);
     if (!$terminalTarjeta) {
-        echo json_encode(['error' => 'Selecciona una terminal activa para cobrar con tarjeta.']);
+        echo json_encode(['error' => !empty($data['venta_emergencia'])
+            ? 'La terminal ya no está activa. La venta ya cobrada necesita revisión.'
+            : 'Selecciona una terminal activa para cobrar con tarjeta.']);
         exit;
     }
 }
@@ -145,8 +164,36 @@ try {
         }
     }
 
-    $ventaPreparada = nuviPrepararProductosVenta($conexion, $productos);
+    $productosSolicitados = $productos;
+    if (!empty($data['venta_emergencia'])) {
+        foreach ($productosSolicitados as $producto) {
+            if (!empty($producto['origen_granel'])) {
+                foreach ([['detalle_ventas', 'cantidad'], ['productos', 'stock']] as [$tabla, $columna]) {
+                    $resultadoColumna = mysqli_query($conexion, "SHOW COLUMNS FROM `$tabla` LIKE '$columna'");
+                    $definicion = $resultadoColumna ? mysqli_fetch_assoc($resultadoColumna) : null;
+                    if (!$definicion || !preg_match('/^decimal\\(\\d+,\\s*([3-9]|[1-9]\\d+)\\)/i', $definicion['Type'])) {
+                        throw new Exception('El inventario no admite cantidades a granel con tres decimales. La venta necesita revisión.');
+                    }
+                }
+                break;
+            }
+        }
+    }
+    $ventaPreparada = nuviPrepararProductosVenta($conexion, $productos, true);
     $productos = $ventaPreparada['productos'];
+    if (!empty($data['venta_emergencia'])) {
+        $preciosActuales = [];
+        foreach ($productos as $producto) {
+            $preciosActuales[(int) $producto['id']] = (float) $producto['precio'];
+        }
+        foreach ($productosSolicitados as $producto) {
+            $idProducto = (int) ($producto['id'] ?? 0);
+            if (!isset($preciosActuales[$idProducto]) || !isset($producto['precio']) || !is_numeric($producto['precio'])
+                || abs((float) $producto['precio'] - $preciosActuales[$idProducto]) > 0.00001) {
+                throw new Exception('El precio cambió en un producto. La venta ya cobrada necesita revisión.');
+            }
+        }
+    }
     $total = $ventaPreparada['total'];
     if ($totalSolicitado <= 0 || abs($totalSolicitado - $total) > 0.01) {
         throw new Exception('El precio cambió. Actualiza el carrito antes de cobrar.');
@@ -202,6 +249,22 @@ try {
 
     if ($terminalTarjeta !== null) {
         $calculoTarjeta = nuviCalcularCobroTerminal($importeTarjeta, $terminalTarjeta);
+        if (!empty($data['venta_emergencia'])) {
+            $terminalGuardada = $data['terminal_emergencia'] ?? null;
+            if (!is_array($terminalGuardada) || (int) ($terminalGuardada['id'] ?? 0) !== (int) $terminalTarjeta['id']) {
+                throw new Exception('La configuración de la terminal cambió. La venta ya cobrada necesita revisión.');
+            }
+            foreach (['comision_porcentaje', 'iva_porcentaje', 'cargo_fijo'] as $campo) {
+                if (!isset($terminalGuardada[$campo]) || !is_numeric($terminalGuardada[$campo])
+                    || abs((float) $terminalGuardada[$campo] - (float) $terminalTarjeta[$campo]) > 0.00001) {
+                    throw new Exception('La configuración de la terminal cambió. La venta ya cobrada necesita revisión.');
+                }
+            }
+            if (!isset($data['cobro_tarjeta_emergencia']) || !is_numeric($data['cobro_tarjeta_emergencia'])
+                || abs((float) $data['cobro_tarjeta_emergencia'] - $calculoTarjeta['monto_cobrado_tarjeta']) > 0.001) {
+                throw new Exception('El importe de la terminal no coincide. La venta ya cobrada necesita revisión.');
+            }
+        }
         foreach ($pagosVenta as &$pago) {
             if (($pago['metodo'] ?? '') !== 'tarjeta') {
                 continue;
@@ -316,7 +379,7 @@ try {
     }
 
     nuviGuardarPagosVenta($conexion, (int) $idVenta, $pagosVenta);
-    nuviGuardarDetallesYDescontarStock($conexion, $idVenta, $productos);
+    nuviGuardarDetallesYDescontarStock($conexion, $idVenta, $productos, true);
 
     mysqli_commit($conexion);
     nuviRegistrarAuditoria(
@@ -368,8 +431,12 @@ try {
     $mensaje = $e->getMessage();
     $mensajesCliente = [
         'Stock insuficiente',
+        'El inventario aún no admite existencias negativas',
         'El stock cambió',
         'El precio cambió',
+        'El inventario no admite cantidades a granel',
+        'La configuración de la terminal cambió',
+        'El importe de la terminal no coincide',
         'Efectivo recibido',
         'pago mixto',
         'Un producto ya no existe',
