@@ -91,6 +91,7 @@ jobs:
           }
           if ($setup.ExitCode -eq 0) { throw 'La configuración falló, pero el instalador informó éxito.' }
           if (!(Select-String -Path $log -SimpleMatch 'La configuracion fallo (codigo 37)' -Quiet)) {
+            Get-Content $log | Write-Host
             throw 'El instalador no identificó el fallo de configuración en el registro.'
           }
       - uses: actions/upload-artifact@v4
