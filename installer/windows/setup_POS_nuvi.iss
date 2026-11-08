@@ -35,24 +35,6 @@ begin
 		exit;
 	end;
 
-	procedure CurStepChanged(CurStep: TSetupStep);
-	var
-		ResultCode: Integer;
-		Parameters: String;
-	begin
-		if CurStep = ssPostInstall then
-		begin
-			Parameters := '-NoProfile -ExecutionPolicy Bypass -File "' +
-				ExpandConstant('{app}\installer\windows\install_windows.ps1') +
-				'" -AppRoot "' + ExpandConstant('{app}') + '"';
-			if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-				Parameters, '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode) then
-				RaiseException('No se pudo iniciar la configuracion. La instalacion no esta lista; revisa los archivos y la base de datos antes de reintentar.');
-			if ResultCode <> 0 then
-				RaiseException('La configuracion fallo (codigo ' + IntToStr(ResultCode) +
-					'). La instalacion no esta lista; revisa los mensajes, archivos y base de datos antes de reintentar.');
-		end;
-	end;
 	HasFiles := False;
 	if DirExists(ExpandConstant('{app}')) and FindFirst(ExpandConstant('{app}\*'), SearchRec) then
 	begin
@@ -71,4 +53,23 @@ begin
 	end
 	else
 		Result := True;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+	ResultCode: Integer;
+	Parameters: String;
+begin
+	if CurStep = ssPostInstall then
+	begin
+		Parameters := '-NoProfile -ExecutionPolicy Bypass -File "' +
+			ExpandConstant('{app}\installer\windows\install_windows.ps1') +
+			'" -AppRoot "' + ExpandConstant('{app}') + '"';
+		if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+			Parameters, '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode) then
+			RaiseException('No se pudo iniciar la configuracion. La instalacion no esta lista; revisa los archivos y la base de datos antes de reintentar.');
+		if ResultCode <> 0 then
+			RaiseException('La configuracion fallo (codigo ' + IntToStr(ResultCode) +
+				'). La instalacion no esta lista; revisa los mensajes, archivos y base de datos antes de reintentar.');
+	end;
 end;
