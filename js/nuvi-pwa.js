@@ -70,19 +70,38 @@
         document.body.append(aviso);
 
         let comprobando = false;
+        let fallosConsecutivos = 0;
+        let timerReintento = null;
+        let revisionVisibilidad = 0;
+        let controladorActivo = null;
         async function comprobarServidor() {
-            if (comprobando) return;
+            if (comprobando || document.hidden) return;
             comprobando = true;
             const controller = new AbortController();
+            controladorActivo = controller;
+            const revision = revisionVisibilidad;
             const timer = setTimeout(() => controller.abort(), 5000);
             try {
                 const respuesta = await fetch(new URL('estado_conexion.php', scopeUrl).href, {
                     cache: 'no-store', credentials: 'same-origin', signal: controller.signal
                 });
+                if (revision !== revisionVisibilidad) return;
                 if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
+                clearTimeout(timerReintento);
+                fallosConsecutivos = 0;
                 aviso.hidden = true;
                 descartado = false;
             } catch (error) {
+                if (document.hidden || revision !== revisionVisibilidad) {
+                    fallosConsecutivos = 0;
+                    return;
+                }
+                fallosConsecutivos++;
+                if (fallosConsecutivos < 2) {
+                    clearTimeout(timerReintento);
+                    timerReintento = setTimeout(comprobarServidor, 3000);
+                    return;
+                }
                 let preparada = false;
                 try {
                     preparada = Boolean(navigator.serviceWorker.controller
@@ -99,11 +118,24 @@
                 aviso.hidden = descartado;
             } finally {
                 clearTimeout(timer);
+                controladorActivo = null;
                 comprobando = false;
+                if (revision !== revisionVisibilidad && !document.hidden) comprobarServidor();
             }
         }
         window.addEventListener('offline', comprobarServidor);
         window.addEventListener('online', comprobarServidor);
+        document.addEventListener('visibilitychange', () => {
+            revisionVisibilidad++;
+            if (document.hidden) {
+                if (controladorActivo) controladorActivo.abort();
+                clearTimeout(timerReintento);
+                fallosConsecutivos = 0;
+                aviso.hidden = true;
+            } else {
+                comprobarServidor();
+            }
+        });
         setInterval(comprobarServidor, 15000);
         comprobarServidor();
     });

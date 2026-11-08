@@ -8,7 +8,7 @@ function renderNuviPwaHead() {
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/nuvi-pwa-192.png">
     <link rel="apple-touch-icon" href="assets/nuvi-pwa-192.png">
-    <script defer src="js/nuvi-pwa.js?v=21"></script>';
+    <script defer src="js/nuvi-pwa.js?v=22"></script>';
     if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['id_usuario'])) {
         require_once __DIR__ . '/csrf_utils.php';
         echo '<script src="js/registro-errores.js?v=2" data-usuario="'

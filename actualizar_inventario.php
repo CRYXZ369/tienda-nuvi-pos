@@ -88,10 +88,14 @@ try {
         }
         $tipo = 'di';
     } elseif ($columna === 'stock') {
-        $valor = (float) str_replace(',', '.', (string) $valor);
-        if ($valor < 0) {
-            throw new Exception('El stock no puede ser negativo.');
+        $stockTexto = str_replace(',', '.', trim((string) $valor));
+        if ($stockTexto === '' || $stockTexto === '-' || preg_match('/^-0(?:\.0+)?$/D', $stockTexto)) {
+            $stockTexto = '0';
         }
+        if (!preg_match('/^\d+(?:\.\d+)?$/D', $stockTexto) || !is_finite((float) $stockTexto)) {
+            throw new Exception('Escribe una cantidad de existencias válida, igual o mayor a cero.');
+        }
+        $valor = (float) $stockTexto;
         $tipo = 'di';
     } elseif ($columna === 'activo') {
         $valor = in_array((string) $valor, ['0', 'false'], true) ? 0 : 1;

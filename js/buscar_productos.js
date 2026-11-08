@@ -824,10 +824,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function guardarEdicion(elemento, id, columna) {
-    const valor = elemento.innerText.replace(/\s*\[(?:AGOTADO|SURTIR|REVISAR EXISTENCIAS)\]\s*$/, '').trim();
+    let valor = elemento.innerText.replace(/\s*\[(?:AGOTADO|SURTIR|REVISAR EXISTENCIAS)\]\s*$/, '').trim();
     if (columna === 'stock') {
         const anterior = Number(elemento.dataset.stockGuardado);
-        const normalizado = valor.replace(',', '.');
+        let normalizado = valor.replace(',', '.');
+        if (normalizado === '' || normalizado === '-' || /^-0(?:\.0+)?$/.test(normalizado)) {
+            normalizado = '0';
+        }
         if (!/^\d+(?:\.\d+)?$/.test(normalizado)) {
             if (Number(normalizado) !== anterior || anterior >= 0) {
                 alert('Escribe una cantidad de existencias válida, igual o mayor a cero.');
@@ -839,6 +842,7 @@ function guardarEdicion(elemento, id, columna) {
             updateStockVisual(elemento, anterior);
             return;
         }
+        valor = normalizado;
     }
     const formData = new FormData();
     formData.append('id', id);
