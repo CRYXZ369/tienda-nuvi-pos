@@ -61,6 +61,9 @@
         cerrar.type = 'button';
         cerrar.textContent = 'Seguir en esta pantalla';
         cerrar.style.cssText = 'margin:.5rem;padding:.7rem;background:white;color:#3d2c00;border:1px solid #684400;border-radius:.5rem;font:inherit;cursor:pointer';
+        // El tema compartido reemplaza fondos blancos con !important.
+        cerrar.style.setProperty('background', '#ffffff', 'important');
+        cerrar.style.setProperty('color', '#3d2c00', 'important');
         let descartado = false;
         cerrar.addEventListener('click', () => { descartado = true; aviso.hidden = true; });
         aviso.append(texto, enlace, cerrar);
