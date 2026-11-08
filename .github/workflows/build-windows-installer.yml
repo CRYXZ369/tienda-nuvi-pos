@@ -14,6 +14,22 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($script in @('installer/windows/install_windows.ps1', 'installer/windows/build.ps1')) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path $PWD $script), [ref]$tokens, [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Host "$script`: $($_.Message) ($($_.Extent.StartLineNumber))" }
+              $failed = $true
+            }
+          }
+          if ($failed) { exit 1 }
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
       - name: Compile installer
