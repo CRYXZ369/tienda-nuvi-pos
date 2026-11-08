@@ -28,6 +28,13 @@ var
 	SearchRec: TFindRec;
 	HasFiles: Boolean;
 begin
+	if not FileExists('C:\xampp\php\php.exe') or
+	   not FileExists('C:\xampp\mysql\bin\mysql.exe') then
+	begin
+		MsgBox('Antes de instalar Nuvi, instala XAMPP en C:\xampp e inicia Apache y MySQL. No se copio ningun archivo.', mbError, MB_OK);
+		Result := False;
+		exit;
+	end;
 	HasFiles := False;
 	if DirExists(ExpandConstant('{app}')) and FindFirst(ExpandConstant('{app}\*'), SearchRec) then
 	begin

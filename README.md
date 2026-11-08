@@ -53,7 +53,8 @@ Actualmente se requiere XAMPP instalado en `C:\xampp`, con Apache y MySQL/MariaD
 iniciados; el instalador **no instala XAMPP automáticamente**. El instalador Windows se compila desde
 `installer/windows/setup_POS_nuvi.iss` con Inno Setup 6; el script
 `installer/windows/install_windows.ps1` configura la base y solicita el
-administrador. GitHub Actions puede compilarlo al publicar una etiqueta `v*`.
+administrador. Si falta XAMPP en esa ruta, el instalador se detiene antes de
+copiar archivos. GitHub Actions puede compilarlo al publicar una etiqueta `v*`.
 
 Al publicar una etiqueta `v*`, GitHub Actions compila el instalador y lo adjunta
 a la Release de esa versión. También puedes compilarlo localmente con
