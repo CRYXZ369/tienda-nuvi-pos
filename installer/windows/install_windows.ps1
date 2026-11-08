@@ -43,9 +43,9 @@ try {
     $confirmSecure = Read-Host 'Confirma la contraseña' -AsSecureString
     $adminConfirm = ConvertFrom-SecureStringPlain $confirmSecure
     $adminPasswordBytes = [Text.Encoding]::UTF8.GetByteCount($adminPassword)
-    if (!$adminName -or !$adminLastName -or $adminName.Length -gt 50 -or $adminLastName.Length -gt 50
-        -or $adminUser -notmatch '^[A-Za-z0-9._-]{3,30}$' -or $adminPassword -ne $adminConfirm
-        -or $adminPasswordBytes -lt 12 -or $adminPasswordBytes -gt 72) {
+    if (!$adminName -or !$adminLastName -or $adminName.Length -gt 50 -or $adminLastName.Length -gt 50 -or
+        $adminUser -notmatch '^[A-Za-z0-9._-]{3,30}$' -or $adminPassword -ne $adminConfirm -or
+        $adminPasswordBytes -lt 12 -or $adminPasswordBytes -gt 72) {
         throw 'Revisa los nombres, el usuario y la contraseña (12-72 bytes). No se creó la base.'
     }
 
