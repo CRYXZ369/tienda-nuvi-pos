@@ -6,9 +6,11 @@ if (!$env:GITHUB_ACTIONS -or $env:RUNNER_OS -ne 'Windows' -or (Test-Path 'C:\xam
 $instalador = Join-Path $env:RUNNER_TEMP 'xampp-prueba.exe'
 $url = 'https://downloads.sourceforge.net/project/xampp/XAMPP%20Windows/8.3.36/xampp-windows-x64-8.3.36-0-VC16-installer.exe'
 $hashEsperado = 'dd54667c0c379cc137a92889857bd809c24a619f18eacb09c7376ef914391bbf'
-Invoke-WebRequest -Uri $url -OutFile $instalador
+& curl.exe --fail --location --silent --show-error --max-time 300 --user-agent 'Mozilla/5.0' --output $instalador $url
+if ($LASTEXITCODE -ne 0) { throw 'No se pudo descargar XAMPP desde el origen oficial.' }
 if ((Get-FileHash -Algorithm SHA256 $instalador).Hash -ne $hashEsperado) {
-    throw 'La descarga de XAMPP no coincide con la versión verificada.'
+    $bytes = (Get-Item $instalador).Length
+    throw "La descarga de XAMPP no coincide con la versión verificada ($bytes bytes); no se ejecutó."
 }
 $setup = Start-Process -FilePath $instalador -ArgumentList '--mode', 'unattended', '--unattendedmodeui', 'none' -PassThru
 if (!$setup.WaitForExit(360000)) {
