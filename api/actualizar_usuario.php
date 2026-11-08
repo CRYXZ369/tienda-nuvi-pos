@@ -12,6 +12,7 @@ if (!is_array($data) || empty($data)) {
 }
 
 $accion = isset($data['accion']) ? $data['accion'] : null;
+$transaccion = false;
 
 try {
     $auditoriaAccion = 'usuario_actualizado';
@@ -107,7 +108,29 @@ try {
 
     if (!$stmt) throw new Exception('Error interno: declaración no preparada');
 
+    if (in_array($accion, ['cambiar_pass', 'eliminar_usuario'], true)) {
+        if (!mysqli_begin_transaction($conexion)) throw new Exception('No se pudo iniciar la operación.');
+        $transaccion = true;
+        $bloqueo = mysqli_prepare($conexion, 'SELECT id FROM usuarios WHERE id = ? FOR UPDATE');
+        if (!$bloqueo) throw new Exception('No se pudo verificar el usuario.');
+        mysqli_stmt_bind_param($bloqueo, 'i', $id);
+        if (!mysqli_stmt_execute($bloqueo)) throw new Exception('No se pudo bloquear el usuario.');
+        mysqli_stmt_close($bloqueo);
+        $tabla = mysqli_query($conexion, "SHOW TABLES LIKE 'dispositivos_confianza'");
+        if (!$tabla) throw new Exception('No se pudo verificar el acceso de confianza.');
+        if (mysqli_num_rows($tabla)) {
+            $revocar = mysqli_prepare($conexion, 'DELETE FROM dispositivos_confianza WHERE usuario_id = ?');
+            if (!$revocar) throw new Exception('No se pudieron preparar las revocaciones.');
+            mysqli_stmt_bind_param($revocar, 'i', $id);
+            if (!mysqli_stmt_execute($revocar)) throw new Exception('No se pudieron revocar los dispositivos de confianza.');
+            mysqli_stmt_close($revocar);
+        }
+    }
     if (mysqli_stmt_execute($stmt)) {
+        if ($transaccion) {
+            if (!mysqli_commit($conexion)) throw new Exception('No se pudo confirmar la operación.');
+            $transaccion = false;
+        }
         if ($accion === 'agregar_usuario') {
             $auditoriaEntidadId = (int) mysqli_insert_id($conexion);
         }
@@ -122,12 +145,17 @@ try {
         );
         echo json_encode(['status' => 'ok']);
     } else {
+        if ($transaccion) {
+            mysqli_rollback($conexion);
+            $transaccion = false;
+        }
         $err = mysqli_error($conexion);
         mysqli_stmt_close($stmt);
         error_log('[actualizar_usuarios] execute failed: ' . $err);
         echo json_encode(['status' => 'error', 'message' => $err]);
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
+    if ($transaccion) mysqli_rollback($conexion);
     error_log('[actualizar_usuarios] exception: ' . $e->getMessage());
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }

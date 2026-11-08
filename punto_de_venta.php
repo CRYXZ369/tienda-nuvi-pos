@@ -942,12 +942,10 @@
             const PUEDE_GESTIONAR_CLIENTES = <?php echo $puedeAjustarSaldo ? 'true' : 'false'; ?>;
             const LONGITUDES_CODIGO_BARRAS = [8, 12, 13, 14];
             const ESPERA_ESCANER_MS = 3000;
-            const INTERVALO_MAXIMO_LECTOR_MS = 70;
-            // Bluetooth añade una pequeña latencia entre teclas. Este margen
-            // se usa solamente fuera del buscador, donde un cajero no captura
-            // códigos largos a mano; así el lector HID no se parte a mitad.
+            const INTERVALO_MAXIMO_LECTOR_MS = 260;
+            // Bluetooth puede añadir latencia entre teclas, también fuera del buscador.
             const INTERVALO_MAXIMO_LECTOR_BLUETOOTH_MS = 260;
-            const ESPERA_AUTOPROCESAR_LECTOR_MS = 85;
+            const ESPERA_AUTOPROCESAR_LECTOR_MS = 320;
             const ID_USUARIO_ACTUAL = <?php echo (int) ($_SESSION['id_usuario'] ?? 0); ?>;
             let NUVI_CSRF_TOKEN = <?php echo json_encode(nuviTokenCsrf()); ?>;
             const NUVI_CONFIG_TICKET = <?php echo json_encode($configTicket, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
@@ -1587,7 +1585,7 @@
 
                 lecturaAnterior = texto;
                 lecturaUltimoTeclaMs = ahora;
-                return lecturaRapidaActiva && lecturaInicioMs > 0 && (ahora - lecturaInicioMs) <= 1200;
+                return lecturaRapidaActiva && lecturaInicioMs > 0 && (ahora - lecturaInicioMs) <= 4000;
             }
 
             function buscarProductoLocalPorCodigo(codigo) {
@@ -3314,7 +3312,8 @@
 
                 if (esCodigoBarras(valor.trim())) {
                     ocultarSugerencias();
-                    if (lecturaRapida) {
+                    if (lecturaRapida || (typeof e.data === 'string' && e.data.length > 1)
+                        || e.inputType === 'insertFromPaste' || e.inputType === 'insertReplacementText') {
                         const codigoLeido = valor.trim();
                         timerBusquedaUniversal = setTimeout(() => {
                             if (DOM.inputUniversal.value.trim() === codigoLeido) {

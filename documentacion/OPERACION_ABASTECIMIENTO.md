@@ -63,6 +63,8 @@ cambios de inventario sin guardar. En el punto de venta puedes cerrar el aviso
 y continuar en la caja normal si sigue funcionando. Si el aviso indica que no está preparada,
 no se puede usar esa caja hasta prepararla con conexión. Al navegar, también se
 abre la pantalla de emergencia si el servidor responde con un error 5xx.
+El aviso se muestra tras dos comprobaciones fallidas, por lo que puede tardar
+unos segundos; al reactivar la tablet se vuelve a comprobar el servidor.
 
 En la caja de emergencia, un código exacto se agrega con un escaneo, incluso
 si el lector no envía Enter; los productos a granel abren la selección de

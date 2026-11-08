@@ -3,6 +3,7 @@ include("auth.php");
 tienePermiso(['admin']);
 include("conexion.php");
 require_once("app_header.php");
+require_once("csrf_utils.php");
 
 if (!isset($conexion) || !($conexion instanceof mysqli)) {
     die('Sin conexión a base de datos');
@@ -88,6 +89,7 @@ $resultado = mysqli_query($conexion, $sql);
                     <div>
                         <button class="btn-accion btn-neutro" onclick="editarNombre(<?php echo $u['id']; ?>, '<?php echo addslashes($u['nombre']); ?>')">✏️ Nombre</button>
                         <button class="btn-accion btn-neutro" onclick="abrirModalPassword(<?php echo $u['id']; ?>, '<?php echo addslashes($u['nombre']); ?>')">🔑 Contraseña</button>
+                        <button class="btn-accion btn-neutro" onclick="revocarDispositivos(<?php echo (int) $u['id']; ?>)">🔒 Revocar accesos rápidos</button>
                         <button class="btn-accion" style="background: #3b82f6; color: white;" onclick="cambiarRol(<?php echo $u['id']; ?>, '<?php echo $u['rol']; ?>')">🔄 Rol</button>
                         <button class="btn-accion" style="background: #ef4444; color: white;" onclick="eliminarUsuario(<?php echo $u['id']; ?>, '<?php echo addslashes($u['nombre']); ?>')">🗑️ Eliminar</button>
                     </div>
@@ -97,6 +99,23 @@ $resultado = mysqli_query($conexion, $sql);
     </div>
 
     <script>
+        const csrfDispositivos = <?php echo json_encode(nuviTokenCsrf()); ?>;
+        async function revocarDispositivos(id) {
+            if (!confirm('¿Revocar todos los accesos rápidos de este usuario? Sus sesiones abiertas seguirán activas.')) return;
+            try {
+                const respuesta = await fetch('revocar_dispositivos.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Nuvi-CSRF': csrfDispositivos },
+                    body: JSON.stringify({ id })
+                });
+                const datos = await respuesta.json();
+                if (!respuesta.ok || !datos.success) throw new Error(datos.message || 'No se pudo revocar.');
+                alert(datos.message);
+            } catch (error) {
+                console.error('Error al revocar accesos rápidos:', error);
+                alert(error.message || 'Error de conexión al revocar accesos.');
+            }
+        }
         function cambiarRol(id, rolActual) {
             const nuevoRol = rolActual === 'admin' ? 'cajero' : 'admin';
             if (!confirm(`¿Cambiar el rol del usuario #${id} a ${nuevoRol}?`)) return;

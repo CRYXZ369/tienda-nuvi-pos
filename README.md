@@ -32,6 +32,16 @@ elegida por quien instala. No usa ni incluye datos de una tienda real.
 - MySQL o MariaDB.
 - Apache o Nginx configurado para servir PHP.
 
+El inicio de sesión permite recordar perfiles durante 30 días en dispositivos
+HTTPS de confianza. Cualquier persona con acceso a la tablet puede entrar con
+los permisos del perfil, incluso de administrador: actívalo sólo en equipos
+protegidos. Se pueden olvidar perfiles en la pantalla de acceso o revocar todos
+los dispositivos de un usuario desde **Admin Usuarios**; esto no cierra sesiones
+ya iniciadas. Cambiar la contraseña o desactivar al usuario revoca sus accesos
+rápidos. No se guarda la contraseña en el dispositivo. Para instalaciones
+existentes, un administrador debe ejecutar `migrate_dispositivos_confianza.php`;
+sin esa migración, el acceso habitual con contraseña sigue funcionando.
+
 ## Instalación en Linux
 
 En Fedora, Debian o Ubuntu, clona o descarga el repositorio y ejecuta:

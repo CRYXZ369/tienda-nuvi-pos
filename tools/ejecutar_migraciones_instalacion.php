@@ -17,6 +17,7 @@ $migraciones = [
     'migrate_nota_venta.php',
     'migrate_operacion_inventario.php',
     'migrate_performance_indexes.php',
+    'migrate_dispositivos_confianza.php',
 ];
 
 foreach ($migraciones as $migracion) {
