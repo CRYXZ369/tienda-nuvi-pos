@@ -4,7 +4,7 @@ if (!$env:GITHUB_ACTIONS -or $env:RUNNER_OS -ne 'Windows' -or (Test-Path 'C:\xam
 }
 
 $instalador = Join-Path $env:RUNNER_TEMP 'xampp-prueba.exe'
-$url = 'https://sourceforge.net/projects/xampp/files/XAMPP%20Windows/8.3.36/xampp-windows-x64-8.3.36-0-VC16-installer.exe/download'
+$url = 'https://downloads.sourceforge.net/project/xampp/XAMPP%20Windows/8.3.36/xampp-windows-x64-8.3.36-0-VC16-installer.exe'
 $hashEsperado = 'dd54667c0c379cc137a92889857bd809c24a619f18eacb09c7376ef914391bbf'
 Invoke-WebRequest -Uri $url -OutFile $instalador
 if ((Get-FileHash -Algorithm SHA256 $instalador).Hash -ne $hashEsperado) {
