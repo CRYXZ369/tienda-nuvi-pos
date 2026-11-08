@@ -74,6 +74,9 @@ dividiendo el importe entre el precio unitario; el inventario almacena tres
 decimales. Los accesos se agrupan automáticamente por categoría y tipo a partir
 del catálogo y no sustituyen al buscador. La base debe tener
 preparada la migración de cantidades decimales para poder sincronizarlos.
+Las categorías `Fruto` y `Frutos` se agrupan como `Frutos` sin modificar el
+inventario. Los productos que no forman una familia se muestran directamente
+si son cuatro o menos; con cinco o más se agrupan en `Otros productos`.
 Si la tablet se queda sin batería o no estaba preparada, no se puede garantizar
 la operación. En `http://192.168.x.x` el service worker no es fiable: usa HTTPS
 confiable en la misma dirección de la tienda.

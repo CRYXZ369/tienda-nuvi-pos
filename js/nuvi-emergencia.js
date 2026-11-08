@@ -85,8 +85,16 @@
         if (/carnes? frias?/.test(categoria)) { grupo = 'Carnes frías'; icono = '🍖'; }
         else if (/verdura/.test(categoria)) { grupo = 'Verduras'; icono = '🥬'; }
         else if (/^fruta/.test(categoria)) { grupo = 'Frutas'; icono = '🍎'; }
+        else if (/^frutos?$/.test(categoria)) { grupo = 'Frutos'; icono = '🥜'; }
         else if (/lacteo|cremeria/.test(categoria)) { grupo = 'Lácteos'; icono = '🧀'; }
         else if (/detergente|jarceria|limpieza/.test(categoria)) { grupo = 'Jarciería y limpieza'; icono = '🧼'; }
+        else if (/abarrotes/.test(categoria)) { icono = '🛒'; }
+        else if (/botanas/.test(categoria)) { icono = '🍿'; }
+        else if (/chiles?\s+secos?/.test(categoria)) { icono = '🌶️'; }
+        else if (/dulces?\s*a?\s*granel/.test(categoria)) { icono = '🍬'; }
+        else if (/pan de dulce/.test(categoria)) { icono = '🍩'; }
+        else if (/salsas?/.test(categoria)) { icono = '🥫'; }
+        else if (/semillas/.test(categoria)) { icono = '🌾'; }
         const familias = [
             [/jamon/, 'Jamón', '🍖'], [/salchicha/, 'Salchicha', '🌭'], [/tocino/, 'Tocino', '🥓'],
             [/longaniza/, 'Longaniza', '🌭'], [/queso/, 'Quesos', '🧀'],
@@ -125,14 +133,27 @@
         function familias(grupo) {
             contenedor.replaceChildren();
             boton('← Categorías', inicio);
-            ordenar(Array.from(grupo.familias.values())).forEach(familia => boton(`${familia.icono} ${familia.nombre}`, () => lista(grupo, familia)));
+            const directos = [];
+            ordenar(Array.from(grupo.familias.values())).forEach(familia => {
+                if (familia.nombre === 'Otros productos' || familia.productos.length === 1) {
+                    directos.push(...familia.productos);
+                } else {
+                    boton(`${familia.icono} ${familia.nombre}`, () => lista(grupo, familia));
+                }
+            });
+            if (directos.length > 4) {
+                boton('⚖️ Otros productos', () => lista(grupo, { productos: directos }));
+            } else {
+                ordenar(directos).forEach(producto => botonProducto(producto));
+            }
+        }
+        function botonProducto(producto) {
+            boton(`${iconoGranel(producto)} ${producto.nombre}${producto.marca ? ` · ${producto.marca}` : ''} · $${Number(producto.precio_venta).toFixed(2)}/${producto.unidad_medida} · ID ${producto.id}`, () => seleccionar(producto));
         }
         function lista(grupo, familia) {
             contenedor.replaceChildren();
             boton(`← ${grupo.nombre}`, () => familias(grupo));
-            ordenar(familia.productos.slice()).forEach(producto => {
-                boton(`${iconoGranel(producto)} ${producto.nombre}${producto.marca ? ` · ${producto.marca}` : ''} · $${Number(producto.precio_venta).toFixed(2)}/${producto.unidad_medida} · ID ${producto.id}`, () => seleccionar(producto));
-            });
+            ordenar(familia.productos.slice()).forEach(botonProducto);
         }
         inicio();
     }
