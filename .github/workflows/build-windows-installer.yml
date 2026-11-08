@@ -99,6 +99,23 @@ jobs:
             Get-Content $log | Write-Host
             throw 'El instalador no identificó el fallo de configuración en el registro.'
           }
+      - name: Test successful installer control flow
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP 'nuvi-installer-fixture'
+          Move-Item 'C:\xampp\htdocs\tienda-nuvi' 'C:\xampp\htdocs\tienda-nuvi-fallido-prueba'
+          Set-Content -Path (Join-Path $fixture 'installer\windows\install_windows.ps1') -Value 'exit 0'
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" (Join-Path $fixture 'installer\windows\setup_POS_nuvi.iss')
+          if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el paquete de prueba.' }
+          $setup = Start-Process -FilePath (Join-Path $fixture 'dist\setup_POS_nuvi.exe') `
+            -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -PassThru
+          if (!$setup.WaitForExit(30000)) {
+            Stop-Process -Id $setup.Id -Force
+            throw 'El instalador no terminó la prueba en 30 segundos.'
+          }
+          if ($setup.ExitCode -ne 0 -or !(Test-Path 'C:\xampp\htdocs\tienda-nuvi\login.php')) {
+            throw 'El flujo de instalación con configurador simulado no terminó correctamente.'
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: setup_POS_nuvi
