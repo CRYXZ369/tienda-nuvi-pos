@@ -32,8 +32,24 @@ try {
         $rechazo = true;
     }
     if (!$rechazo) throw new RuntimeException('Se aceptó un precio autorizado inválido.');
+    if ($revisada['productos'][0]['unidad_medida'] !== 'pza') {
+        throw new RuntimeException('No se conservó la unidad de medida.');
+    }
+    mysqli_query($conexion, "UPDATE productos SET activo = 0 WHERE id = $id");
+    $rechazo = false;
+    try {
+        nuviPrepararProductosVenta($conexion, $lineas, true);
+    } catch (Exception $error) {
+        if (!str_contains($error->getMessage(), 'está pausado')) throw $error;
+        $rechazo = true;
+    }
+    if (!$rechazo) throw new RuntimeException('La venta normal aceptó un producto pausado.');
+    $revisadaPausada = nuviPrepararProductosVenta($conexion, $lineas, true, [$id => 10], true);
+    if ($revisadaPausada['total'] !== 10.0) {
+        throw new RuntimeException('La revisión no conservó el producto pausado.');
+    }
     mysqli_rollback($conexion);
-    echo "OK: precios actuales y revisión autorizada.\n";
+    echo "OK: precios, unidad y revisión autorizada de producto pausado.\n";
 } catch (Throwable $error) {
     mysqli_rollback($conexion);
     throw $error;

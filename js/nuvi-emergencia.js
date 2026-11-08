@@ -171,6 +171,7 @@
         await escribir(CATALOGO, {
             id: 'actual', id_usuario: idUsuario, nombre, productos, actualizado: new Date().toISOString()
         });
+        window.dispatchEvent(new Event('nuvi-catalogo-emergencia-actualizado'));
         if (navigator.storage && navigator.storage.persist) {
             navigator.storage.persist().catch(error => console.warn('No se pudo solicitar almacenamiento persistente:', error));
         }
@@ -260,8 +261,12 @@
         panel.style.cssText = 'display:none;margin:12px auto;padding:12px;max-width:1050px;background:#fff7ed;color:#9a3412;border:2px solid #f59e0b;border-radius:10px;font-weight:700;';
         document.querySelector('.contenedor').prepend(preparacion, panel);
         let activo = false;
+        let actualizacionPendiente = false;
         const actualizar = async () => {
-            if (activo) return;
+            if (activo) {
+                actualizacionPendiente = true;
+                return;
+            }
             activo = true;
             try {
                 const catalogo = await leer(CATALOGO, 'actual');
@@ -296,9 +301,14 @@
                 console.error('Caja de emergencia:', error);
             } finally {
                 activo = false;
+                if (actualizacionPendiente) {
+                    actualizacionPendiente = false;
+                    actualizar();
+                }
             }
         };
         actualizar();
+        window.addEventListener('nuvi-catalogo-emergencia-actualizado', actualizar);
         window.addEventListener('online', actualizar);
         window.addEventListener('focus', actualizar);
         if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('controllerchange', actualizar);

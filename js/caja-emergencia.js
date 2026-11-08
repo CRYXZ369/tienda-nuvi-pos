@@ -232,12 +232,14 @@
 
     async function mostrarPendientes() {
         const cola = await NuviEmergencia.todasPendientes();
-        const otras = cola.filter(venta => Number(venta.id_usuario) !== Number(catalogo.id_usuario)).length;
+        const otras = cola.filter(venta => !catalogo || Number(venta.id_usuario) !== Number(catalogo.id_usuario)).length;
         const propias = cola.length - otras;
-        $('pendientes').textContent = (propias
-            ? `${propias} venta(s) pendientes de esta cuenta en esta tablet.`
-            : 'No hay ventas de emergencia pendientes para esta cuenta.')
-            + (otras ? ` ${otras} venta(s) más pertenecen a otra cuenta.` : '');
+        $('pendientes').textContent = catalogo
+            ? (propias
+                ? `${propias} venta(s) pendientes de esta cuenta en esta tablet.`
+                : 'No hay ventas de emergencia pendientes para esta cuenta.')
+                + (otras ? ` ${otras} venta(s) más pertenecen a otra cuenta.` : '')
+            : `${cola.length} venta(s) pendientes en esta tablet. No se pudo identificar la cuenta del catálogo.`;
         const detalle = $('detalle-pendientes');
         detalle.replaceChildren();
         cola.forEach(venta => {
@@ -250,7 +252,7 @@
                 const importeBase = Math.round((Number(producto.precio) * Number(producto.cantidad) + Number.EPSILON) * 100);
                 const importe = producto.redondeo_granel === 'arriba' ? Math.ceil(importeBase / 100) * 100
                     : producto.redondeo_granel === 'abajo' ? Math.floor(importeBase / 100) * 100 : importeBase;
-                linea.textContent = `${producto.nombre} · ${producto.cantidad} × ${dinero(Math.round(producto.precio * 100))} = ${dinero(importe)}${producto.origen_granel ? ` · redondeo ${producto.redondeo_granel}` : ''}`;
+                linea.textContent = `${producto.nombre} · ${producto.cantidad} ${producto.unidad_medida || '(unidad no guardada)'} × ${dinero(Math.round(producto.precio * 100))} = ${dinero(importe)}${producto.origen_granel ? ` · redondeo ${producto.redondeo_granel}` : ''}`;
                 tarjeta.append(linea);
             });
             const pago = document.createElement('p');
@@ -328,6 +330,7 @@
             const productos = Array.from(carrito, ([id, linea]) => ({
                 id: linea.producto.id, nombre: linea.producto.nombre,
                 precio: Number(linea.producto.precio_venta), cantidad: linea.cantidad,
+                unidad_medida: String(linea.producto.unidad_medida || ''),
                 ...(linea.granel ? { origen_granel: true, redondeo_granel: linea.redondeo, linea_granel: id } : {})
             }));
             const venta = {
@@ -369,6 +372,7 @@
 
     NuviEmergencia.leerCatalogo().then(async guardado => {
         if (!guardado || !guardado.id_usuario || !Array.isArray(guardado.productos) || !guardado.productos.length) {
+            await mostrarPendientes();
             throw new Error('Esta tablet aún no está preparada. Abre la caja normal con conexión antes de un apagón.');
         }
         catalogo = guardado;

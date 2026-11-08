@@ -64,9 +64,10 @@ de nuevo. La fecha principal del reporte será la de sincronización, y la hora
 original se guarda en la nota. Consulta los límites y preparación en
 [Operación y abastecimiento](documentacion/OPERACION_ABASTECIMIENTO.md).
 
-La revisión de ventas pendientes por un administrador o supervisor está en
-pruebas; esta versión de la caja de emergencia todavía no está lista para
-producción.
+Antes de depender de la caja de emergencia, prueba la preparación, el apagón
+simulado y la sincronización en cada dispositivo. La revisión de pendientes por
+administrador o supervisor requiere conexión y conserva la venta hasta que el
+servidor confirme su registro.
 - `consultar_productos.php` y `obtener_productos_criticos.php`: inventario.
 - `corte_caja.php` y `consultar_cortes.php`: cortes y consulta histórica.
 - `reportes.php` y `exportar_reporte.php`: reportes operativos.

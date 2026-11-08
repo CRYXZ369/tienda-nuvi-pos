@@ -1,5 +1,5 @@
 /* La caja de emergencia es estática; nunca se guardan páginas autenticadas. */
-const CACHE = 'nuvi-pwa-shell-v13';
+const CACHE = 'nuvi-pwa-shell-v17';
 const OFFLINE_URL = new URL('offline.html', self.registration.scope).href;
 const SHELL = [
     OFFLINE_URL,
@@ -33,6 +33,7 @@ self.addEventListener('fetch', (event) => {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
         event.respondWith(fetch(request, { signal: controller.signal })
+            .then(async response => response.status >= 500 ? (await caches.match(OFFLINE_URL)) || response : response)
             .catch(() => caches.match(OFFLINE_URL))
             .finally(() => clearTimeout(timeout)));
         return;

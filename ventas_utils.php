@@ -94,12 +94,12 @@ if (!function_exists('nuviObtenerVentaIdempotente')) {
 if (!function_exists('nuviPrepararProductosVenta')) {
     /**
      * Bloquea los productos, valida que se puedan vender y calcula el importe
-     * usando el precio registrado. Nunca se confía en precio, total o stock del
-     * navegador.
+     * usando el precio registrado, salvo precios explícitamente autorizados en
+     * una revisión. El stock siempre se obtiene de la base.
      *
      * Debe llamarse dentro de una transacción.
      */
-    function nuviPrepararProductosVenta(mysqli $conexion, array $productos, bool $permitirStockNegativo = false, array $preciosAutorizados = []): array
+    function nuviPrepararProductosVenta(mysqli $conexion, array $productos, bool $permitirStockNegativo = false, array $preciosAutorizados = [], bool $permitirPausados = false): array
     {
         if (empty($productos)) {
             throw new Exception('El carrito está vacío');
@@ -155,7 +155,7 @@ if (!function_exists('nuviPrepararProductosVenta')) {
             if (!$fila) {
                 throw new Exception('Un producto ya no existe');
             }
-            if ($tieneActivo && isset($fila['activo']) && (int) $fila['activo'] !== 1) {
+            if (!$permitirPausados && $tieneActivo && isset($fila['activo']) && (int) $fila['activo'] !== 1) {
                 throw new Exception('El producto ' . $fila['nombre'] . ' está pausado');
             }
 
@@ -192,6 +192,7 @@ if (!function_exists('nuviPrepararProductosVenta')) {
                 $porLinea[$claveLinea] = [
                     'id' => $idProducto,
                     'nombre' => (string) $fila['nombre'],
+                    'unidad_medida' => $unidad,
                     'cantidad' => 0.0,
                     'precio' => $precioVenta,
                     'costo' => max(0, (float) ($fila['precio_compra'] ?? 0)),

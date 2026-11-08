@@ -109,10 +109,10 @@ if ($hayTarjeta) {
     }
 
     $idTerminalPago = intval($data['id_terminal_pago'] ?? 0);
-    $terminalTarjeta = nuviObtenerTerminalPago($conexion, $idTerminalPago);
+    $terminalTarjeta = nuviObtenerTerminalPago($conexion, $idTerminalPago, !$revisarEmergencia);
     if (!$terminalTarjeta) {
         echo json_encode(['error' => !empty($data['venta_emergencia'])
-            ? 'La terminal ya no está activa. La venta ya cobrada necesita revisión.'
+            ? 'La terminal ya no existe o no está activa. La venta ya cobrada necesita revisión.'
             : 'Selecciona una terminal activa para cobrar con tarjeta.']);
         exit;
     }
@@ -214,8 +214,22 @@ try {
             $preciosAutorizados[$id] = (float) $precio;
         }
     }
-    $ventaPreparada = nuviPrepararProductosVenta($conexion, $productos, true, $preciosAutorizados);
+    $ventaPreparada = nuviPrepararProductosVenta($conexion, $productos, true, $preciosAutorizados, $revisarEmergencia);
     $productos = $ventaPreparada['productos'];
+    if (!empty($data['venta_emergencia'])) {
+        $unidadesActuales = [];
+        foreach ($productos as $producto) {
+            $unidadesActuales[(int) $producto['id']] = $producto['unidad_medida'];
+        }
+        foreach ($productosSolicitados as $producto) {
+            $idProducto = (int) ($producto['id'] ?? 0);
+            if (!array_key_exists('unidad_medida', $producto) || !is_string($producto['unidad_medida'])
+                || !isset($unidadesActuales[$idProducto])
+                || strtolower(trim($producto['unidad_medida'])) !== $unidadesActuales[$idProducto]) {
+                throw new Exception('La unidad del producto cambió o no está guardada. La venta ya cobrada necesita revisión manual.');
+            }
+        }
+    }
     if (!empty($data['venta_emergencia']) && !$revisarEmergencia) {
         $preciosActuales = [];
         foreach ($productos as $producto) {
@@ -480,6 +494,7 @@ try {
         'La configuración de la terminal cambió',
         'El importe de la terminal no coincide',
         'Los precios de la venta pendiente no son válidos',
+        'La unidad del producto cambió',
         'Efectivo recibido',
         'pago mixto',
         'Un producto ya no existe',

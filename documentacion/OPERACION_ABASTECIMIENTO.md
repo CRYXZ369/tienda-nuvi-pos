@@ -45,11 +45,14 @@ anterior de localStorage. Esto conserva mejor ventas pendientes después de
 cerrar o reiniciar el navegador. La caja de emergencia es una pantalla independiente para registrar ventas
 cuando el servidor o la red se apagan. Antes de un apagón, abre
 la caja normal con HTTPS en la tablet y espera a que cargue el catálogo; la
-instalación debe tener un service worker activo y almacenamiento disponible.
+instalación debe tener HTTPS confiable, un service worker activo y almacenamiento
+disponible. Comprueba en cada tablet la preparación, el apagón simulado y la
+sincronización antes de depender de esta función.
 Si se pierde la conexión, un aviso ofrece abrir la caja de emergencia en otra
 pestaña. La pantalla actual no se cierra, para conservar el carrito o los
 cambios de inventario sin guardar. Si el aviso indica que no está preparada,
-no se puede usar esa caja hasta prepararla con conexión.
+no se puede usar esa caja hasta prepararla con conexión. Al navegar, también se
+abre la pantalla de emergencia si el servidor responde con un error 5xx.
 
 Las ventas quedan en IndexedDB en esa tablet, separadas de la cola anterior.
 Al volver el servidor, entra a la caja normal con la misma cuenta o usa
@@ -57,13 +60,17 @@ Al volver el servidor, entra a la caja normal con la misma cuenta o usa
 PWA mientras existan pendientes. El almacenamiento del navegador puede perderse;
 no reemplaza los respaldos. Si el catálogo o el precio cambiaron, la venta
 permanece pendiente y necesita revisión; nunca se descarta automáticamente.
+Si el catálogo guardado deja de estar disponible, la caja no permite nuevas
+ventas, pero todavía muestra el detalle de las ventas pendientes que permanezcan
+en la tablet para que un administrador pueda revisarlas.
 Un administrador o supervisor puede revisar el detalle pendiente y autorizar
 su registro con los importes originales. La revisión exige iniciar sesión en
 la tablet con conexión y no vuelve a cobrar al cliente. El registro conserva
 la cuenta original y anota quién autorizó la revisión. Si falta un producto,
-la cuenta original o la terminal ya no está activa, la venta sigue pendiente
-para revisión manual. Esta funcionalidad sigue en pruebas y no está lista
-para producción.
+la cuenta original o la terminal ya no existe, o si cambió la unidad de medida,
+la venta sigue pendiente para revisión manual. Un producto pausado o una terminal
+desactivada pueden utilizarse únicamente al autorizar la revisión de una venta
+ya cobrada, sin reactivarlos.
 La fecha y hora de la tablet quedan en la nota de la venta, mientras que la
 fecha principal del servidor corresponde a la sincronización.
 

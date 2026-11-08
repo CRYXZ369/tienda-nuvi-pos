@@ -8,7 +8,7 @@ function renderNuviPwaHead() {
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/nuvi-pwa-192.png">
     <link rel="apple-touch-icon" href="assets/nuvi-pwa-192.png">
-    <script defer src="js/nuvi-pwa.js"></script>';
+    <script defer src="js/nuvi-pwa.js?v=17"></script>';
 }
 
 function renderAppHeaderStyles() {
