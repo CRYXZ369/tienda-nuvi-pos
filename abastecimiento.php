@@ -5,9 +5,11 @@ require_once('conexion.php');
 require_once('app_header.php');
 require_once('operacion_inventario_utils.php');
 require_once('abastecimiento_form_utils.php');
+require_once('pedidos_proveedor_utils.php');
 
 $rolActual = $_SESSION['rol'] ?? '';
 $estructuraLista = isset($conexion) && $conexion instanceof mysqli && nuviOperacionInventarioListo($conexion);
+$agendaLista = $estructuraLista && nuviOperacionTablaExiste($conexion, 'proveedor_agenda') && nuviOperacionTablaExiste($conexion, 'proveedor_productos');
 $estado = trim((string) ($_GET['estado'] ?? ''));
 $periodoUtilidad = (int) ($_GET['periodo'] ?? 30);
 if (!in_array($periodoUtilidad, [7, 30, 90], true)) $periodoUtilidad = 30;
@@ -38,10 +40,25 @@ $mensajes = [
 $proveedores = $productos = $proximos = $compras = $mermas = [];
 $productosPorProveedor = [];
 $errorHistorialProveedor = false;
+$visitasHoy = [];
+$errorVisitas = false;
 $resumen = ['compras' => 0, 'mermas' => 0, 'lotes' => 0];
 $utilidad = ['ventas' => 0, 'costo_ventas' => 0, 'utilidad_bruta' => 0, 'merma' => 0, 'utilidad_neta' => 0];
 $utilidadCategorias = [];
 if ($estructuraLista) {
+    if ($agendaLista) {
+        try {
+            $resVisitas = mysqli_query($conexion, "SELECT p.id, p.nombre FROM proveedores p
+                JOIN proveedor_agenda a ON a.id_proveedor = p.id
+                WHERE p.activo = 1 AND FIND_IN_SET(WEEKDAY(CURDATE()) + 1, a.dias_preventa) > 0
+                ORDER BY p.nombre");
+            if (!$resVisitas) throw new RuntimeException(mysqli_error($conexion));
+            while ($fila = mysqli_fetch_assoc($resVisitas)) $visitasHoy[] = $fila;
+        } catch (Throwable $e) {
+            error_log('abastecimiento visitas: ' . $e->getMessage());
+            $errorVisitas = true;
+        }
+    }
     $condicionProductoActivo = nuviOperacionColumnaExiste($conexion, 'productos', 'activo')
         ? '(activo IS NULL OR activo = 1)'
         : '1 = 1';
@@ -203,6 +220,15 @@ foreach ($productos as $producto) {
             <?php endif; ?>
         </section>
     <?php else: ?>
+        <section class="tarjeta" style="margin-bottom:18px;">
+            <h2>📋 Pedidos a proveedores</h2>
+            <p>Consulta visitas, productos y cantidades orientativas para tu próximo pedido.</p>
+            <?php if ($errorVisitas): ?><p>No se pudo consultar la agenda de visitas de hoy.</p>
+            <?php elseif ($visitasHoy): ?><p><strong>Preventa de hoy:</strong>
+                <?php foreach ($visitasHoy as $visita): ?><a href="pedidos_proveedor.php?proveedor=<?php echo (int) $visita['id']; ?>"><?php echo htmlspecialchars($visita['nombre'], ENT_QUOTES, 'UTF-8'); ?></a> &nbsp;<?php endforeach; ?>
+            </p><?php endif; ?>
+            <a href="pedidos_proveedor.php">Abrir agenda y sugerencias de pedido →</a>
+        </section>
         <section class="tarjeta" aria-labelledby="titulo-caducidad">
             <h2 id="titulo-caducidad">⏳ Revisar caducidades · próximos 30 días</h2>
             <p>Solo aparecen lotes con fecha registrada. Los demás productos también necesitan revisión física.</p>
@@ -268,12 +294,18 @@ foreach ($productos as $producto) {
                 <div class="acciones"><button class="danger">Registrar merma</button></div>
             </form>
             <form class="tarjeta" method="post" action="guardar_proveedor.php">
+                <input type="hidden" name="token_operacion" value="<?php echo htmlspecialchars(nuviCrearTokenAbastecimiento('proveedor'), ENT_QUOTES, 'UTF-8'); ?>">
                 <h2>🤝 Nuevo proveedor</h2>
                 <label>Nombre *</label><input name="nombre" maxlength="120" required>
                 <label>Contacto</label><input name="contacto" maxlength="120">
                 <label>Teléfono</label><input name="telefono" maxlength="40">
                 <label>Correo</label><input type="email" name="email" maxlength="150">
                 <label>Notas</label><textarea name="notas" maxlength="500"></textarea>
+                <?php if ($agendaLista): ?>
+                    <?php $diasSemana = [1 => 'Lun', 2 => 'Mar', 3 => 'Mié', 4 => 'Jue', 5 => 'Vie', 6 => 'Sáb', 7 => 'Dom']; ?>
+                    <fieldset><legend>Días de preventa (opcional)</legend><?php foreach ($diasSemana as $num => $dia): ?><label style="display:inline-block;margin-right:8px;"><input style="width:auto" type="checkbox" name="preventa[]" value="<?php echo $num; ?>"> <?php echo $dia; ?></label><?php endforeach; ?></fieldset>
+                    <fieldset><legend>Días de entrega (opcional)</legend><?php foreach ($diasSemana as $num => $dia): ?><label style="display:inline-block;margin-right:8px;"><input style="width:auto" type="checkbox" name="entrega[]" value="<?php echo $num; ?>"> <?php echo $dia; ?></label><?php endforeach; ?></fieldset>
+                <?php endif; ?>
                 <div class="acciones"><button>Guardar proveedor</button></div>
             </form>
         </section>

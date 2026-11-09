@@ -62,6 +62,36 @@ pertenece a otro lote, las cantidades por lote podrían no reflejar exactamente
 lo que queda físicamente. No registres una compra ficticia para introducir
 fechas de mercancía ya existente: incrementaría el stock.
 
+## Agenda y sugerencias de pedidos
+
+Desde **Entradas y mermas → Pedidos a proveedores**, un administrador prepara
+la agenda una vez. Al registrar un proveedor se pueden marcar días opcionales
+de preventa y entrega; también se pueden editar después. Los días son semanales
+y no contemplan feriados ni cambios excepcionales.
+Cuando haya preventas programadas para hoy, aparecen enlaces a esos proveedores
+en Entradas y mermas; la agenda también muestra sus nombres.
+
+Selecciona el proveedor y asocia sus productos, o añade los que constan en
+compras registradas a ese proveedor. Las marcas no generan asociaciones.
+Cada producto puede tener unidades por paquete para redondear sugerencias; sin
+presentación, se redondean piezas enteras o milésimas para otras unidades.
+El historial importado no se vuelve a añadir automáticamente; si se importa
+de nuevo también pueden regresar asociaciones que se habían quitado.
+
+Con ambos calendarios, la pantalla calcula la próxima preventa, su entrega y
+la entrega posterior. Multiplica el promedio diario de ventas por los días
+desde hoy hasta la siguiente entrega, incluyendo ambos días, resta el stock
+actual y redondea hacia arriba. Usa hasta 28 días completos anteriores a hoy,
+excluye ventas devueltas e indica historial corto desde el alta del producto.
+Si no hay ventas o faltan días de agenda, pide revisión en vez de adivinar.
+El stock negativo aumenta la cantidad sugerida.
+
+Son estimaciones: verifica físicamente el stock, días reales, feriados,
+promociones y pedidos en tránsito. No se detectan automáticamente ventas
+pendientes offline ni pedidos previos; las ventas offline solo se cuentan al
+sincronizar y por su fecha de recepción. Cambiar cantidades es temporal:
+imprime la lista antes de salir. No se envían pedidos ni se mueve inventario.
+
 ## Utilidad
 
 La tarjeta **Utilidad estimada** compara ventas de productos contra su costo y
