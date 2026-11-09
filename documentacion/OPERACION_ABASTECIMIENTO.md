@@ -65,6 +65,10 @@ no se puede usar esa caja hasta prepararla con conexión. Al navegar, también s
 abre la pantalla de emergencia si el servidor responde con un error 5xx.
 El aviso se muestra tras dos comprobaciones fallidas, por lo que puede tardar
 unos segundos; al reactivar la tablet se vuelve a comprobar el servidor.
+En la caja normal, las lecturas consecutivas sin Enter se separan si coinciden
+de forma inequívoca con códigos del catálogo cargado. Si no pueden separarse,
+aparece un aviso y se conserva la lectura para revisarla, sin agregar artículos
+por suposición.
 
 En la caja de emergencia, un código exacto se agrega con un escaneo, incluso
 si el lector no envía Enter; los productos a granel abren la selección de

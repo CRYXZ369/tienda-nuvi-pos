@@ -942,9 +942,9 @@
             const PUEDE_GESTIONAR_CLIENTES = <?php echo $puedeAjustarSaldo ? 'true' : 'false'; ?>;
             const LONGITUDES_CODIGO_BARRAS = [8, 12, 13, 14];
             const ESPERA_ESCANER_MS = 3000;
-            const INTERVALO_MAXIMO_LECTOR_MS = 260;
+            const INTERVALO_MAXIMO_LECTOR_MS = 320;
             // Bluetooth puede añadir latencia entre teclas, también fuera del buscador.
-            const INTERVALO_MAXIMO_LECTOR_BLUETOOTH_MS = 260;
+            const INTERVALO_MAXIMO_LECTOR_BLUETOOTH_MS = 320;
             const ESPERA_AUTOPROCESAR_LECTOR_MS = 320;
             const ID_USUARIO_ACTUAL = <?php echo (int) ($_SESSION['id_usuario'] ?? 0); ?>;
             let NUVI_CSRF_TOKEN = <?php echo json_encode(nuviTokenCsrf()); ?>;
@@ -1341,6 +1341,29 @@
                 return /^\d+$/.test(texto) && LONGITUDES_CODIGO_BARRAS.includes(texto.length);
             }
 
+            function nuviSepararCodigosLector(texto) {
+                if (!/^\d+$/.test(texto)) return null;
+                if (esCodigoBarras(texto)) return [texto];
+                if (texto.length > 140) return null;
+                const soluciones = Array(texto.length + 1).fill(null);
+                soluciones[texto.length] = [[]];
+                for (let posicion = texto.length - 1; posicion >= 0; posicion--) {
+                    const alternativas = [];
+                    for (const longitud of LONGITUDES_CODIGO_BARRAS) {
+                        const codigo = texto.slice(posicion, posicion + longitud);
+                        const resto = soluciones[posicion + longitud];
+                        if (codigo.length !== longitud || !PRODUCTOS_POR_CODIGO.has(codigo) || !resto) continue;
+                        for (const secuencia of resto) {
+                            alternativas.push([codigo, ...secuencia]);
+                            if (alternativas.length === 2) break;
+                        }
+                        if (alternativas.length === 2) break;
+                    }
+                    if (alternativas.length) soluciones[posicion] = alternativas;
+                }
+                return soluciones[0]?.length === 1 ? soluciones[0][0] : null;
+            }
+
             function esTextoCorto(texto) {
                 return /^\d+$/.test(texto) && texto.length > 0 && texto.length < 8;
             }
@@ -1465,7 +1488,7 @@
 
             function nuviProcesarCapturaLectorFisico() {
                 const captura = capturaLectorFisicoGlobal;
-                if (!captura || !esCodigoBarras(captura.codigo)) return;
+                if (!captura) return;
                 nuviCancelarCapturaLectorFisico(true);
                 clearTimeout(timerBusquedaUniversal);
 
@@ -1492,13 +1515,14 @@
             }
 
             function nuviProgramarCapturaLectorFisico() {
-                if (!capturaLectorFisicoGlobal || !esCodigoBarras(capturaLectorFisicoGlobal.codigo)) return;
                 if (timerCapturaLectorFisico) clearTimeout(timerCapturaLectorFisico);
+                if (!capturaLectorFisicoGlobal || (!esCodigoBarras(capturaLectorFisicoGlobal.codigo)
+                    && capturaLectorFisicoGlobal.codigo.length <= Math.max(...LONGITUDES_CODIGO_BARRAS))) return;
                 // También funciona con lectores a los que aún no se les ha
                 // configurado Enter como sufijo. Un lector físico escribe el
                 // código mucho más rápido que una persona.
                 timerCapturaLectorFisico = setTimeout(() => {
-                    if (capturaLectorFisicoGlobal && esCodigoBarras(capturaLectorFisicoGlobal.codigo)) {
+                    if (capturaLectorFisicoGlobal) {
                         nuviProcesarCapturaLectorFisico();
                     }
                 }, ESPERA_AUTOPROCESAR_LECTOR_MS);
@@ -1544,15 +1568,13 @@
 
                     capturaLectorFisicoGlobal.codigo += digito;
                     capturaLectorFisicoGlobal.ultimaTeclaMs = ahora;
-                    if (capturaLectorFisicoGlobal.codigo.length > Math.max(...LONGITUDES_CODIGO_BARRAS)) {
-                        nuviCancelarCapturaLectorFisico(false);
-                        return;
-                    }
                     nuviProgramarCapturaLectorFisico();
                     return;
                 }
 
-                if ((tecla === 'Enter' || tecla === 'Tab') && capturaLectorFisicoGlobal && esCodigoBarras(capturaLectorFisicoGlobal.codigo)) {
+                if ((tecla === 'Enter' || tecla === 'Tab') && capturaLectorFisicoGlobal
+                    && (esCodigoBarras(capturaLectorFisicoGlobal.codigo)
+                        || capturaLectorFisicoGlobal.codigo.length > Math.max(...LONGITUDES_CODIGO_BARRAS))) {
                     // Evita que el Enter del lector envíe un formulario o cambie
                     // de campo; el producto se agrega una sola vez al carrito.
                     evento.preventDefault();
@@ -3271,6 +3293,23 @@
                 const termino = valor.toString().trim();
                 if (!termino) return;
 
+                if (/^\d+$/.test(termino) && termino.length > Math.max(...LONGITUDES_CODIGO_BARRAS)) {
+                    const codigos = nuviSepararCodigosLector(termino);
+                    if (!codigos) {
+                        DOM.inputUniversal.value = termino;
+                        DOM.inputUniversal.focus();
+                        reiniciarRitmoLector();
+                        mostrarError('No se pudieron separar las lecturas. Revisa el código y escanea cada producto de nuevo.');
+                        return;
+                    }
+                    DOM.inputUniversal.value = '';
+                    ocultarSugerencias();
+                    reiniciarRitmoLector();
+                    codigos.forEach(codigo => procesarProducto(PRODUCTOS_POR_CODIGO.get(codigo), 1, null, { confirmar_lector: confirmarLector }));
+                    DOM.inputUniversal.focus();
+                    return;
+                }
+
                 if (esCodigoBarras(termino)) {
                     ocultarSugerencias();
                     const productoLocal = buscarProductoLocalPorCodigo(termino);
@@ -3324,6 +3363,16 @@
                     return;
                 }
 
+                if (/^\d+$/.test(valor.trim()) && valor.trim().length > Math.max(...LONGITUDES_CODIGO_BARRAS)
+                    && (lecturaRapidaActiva || (typeof e.data === 'string' && e.data.length > 1)
+                        || e.inputType === 'insertFromPaste' || e.inputType === 'insertReplacementText')) {
+                    const codigosLeidos = valor.trim();
+                    timerBusquedaUniversal = setTimeout(() => {
+                        if (DOM.inputUniversal.value.trim() === codigosLeidos) procesarEntradaUniversal(codigosLeidos, true);
+                    }, ESPERA_AUTOPROCESAR_LECTOR_MS);
+                    return;
+                }
+
                 if (valor.trim().length < 2 && !esTextoCorto(valor.trim())) {
                     ocultarSugerencias();
                     return;
@@ -3341,11 +3390,16 @@
                     // Tab sólo se intercepta cuando viene como sufijo de un
                     // lector; al escribir una búsqueda normal conserva su
                     // navegación habitual entre campos.
-                    if (e.key === 'Tab' && !esCodigoBarras(valor)) return;
+                    if (e.key === 'Tab' && !esCodigoBarras(valor)
+                        && !(/^\d+$/.test(valor) && valor.length > Math.max(...LONGITUDES_CODIGO_BARRAS))) return;
                     e.preventDefault();
                     clearTimeout(timerBusquedaUniversal);
                     if (!valor) return;
 
+                    if (/^\d+$/.test(valor) && valor.length > Math.max(...LONGITUDES_CODIGO_BARRAS)) {
+                        procesarEntradaUniversal(valor, true);
+                        return;
+                    }
                     if (esCodigoBarras(valor)) {
                         const productoLocal = buscarProductoLocalPorCodigo(valor);
 
