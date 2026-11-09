@@ -256,7 +256,7 @@ foreach ($productos as $producto) {
                 <label><input type="checkbox" id="solo-historial" style="width:auto" <?php echo $errorHistorialProveedor ? 'disabled' : ''; ?>> Mostrar productos comprados antes a este proveedor</label>
                 <small id="aviso-historial"><?php echo $errorHistorialProveedor ? 'No se pudo consultar el historial; aún puedes buscar todos los productos.' : 'La lista se basa solo en compras registradas; no representa todos los productos que entrega.'; ?></small>
                 <label for="codigo-compra">Escanear producto</label>
-                <input id="codigo-compra" type="text" autocomplete="off" placeholder="Escanea y pulsa Enter">
+                <input id="codigo-compra" type="text" autocomplete="off" placeholder="Escanea aquí el código">
                 <p id="mensaje-codigo-compra" role="status"></p>
                 <div id="lineas-compra"></div>
                 <template id="plantilla-linea-compra">
@@ -279,7 +279,7 @@ foreach ($productos as $producto) {
                 <input type="hidden" name="token_operacion" value="<?php echo htmlspecialchars(nuviCrearTokenAbastecimiento('merma'), ENT_QUOTES, 'UTF-8'); ?>">
                 <h2>🗑️ Registrar merma</h2>
                 <label for="codigo-merma">Escanear código</label>
-                <input id="codigo-merma" type="text" autocomplete="off" placeholder="Escanea y pulsa Enter">
+                <input id="codigo-merma" type="text" autocomplete="off" placeholder="Escanea aquí el código">
                 <p id="mensaje-codigo-merma" role="status"></p>
                 <label>Producto *</label><select name="id_producto" required><?php echo $opcionesProducto; ?></select>
                 <label>Cantidad a descontar *</label><input type="number" name="cantidad" min="0.001" step="0.001" required>
@@ -410,10 +410,49 @@ foreach ($productos as $producto) {
     soloHistorial?.addEventListener('change', actualizarHistorial);
     const buscarCodigo = (selector, codigo) => Array.from(selector.options)
         .find(opcion => opcion.value && opcion.dataset.codigo === codigo);
-    document.getElementById('codigo-compra')?.addEventListener('keydown', event => {
-        if (event.key !== 'Enter') return;
-        event.preventDefault();
-        const codigo = event.currentTarget.value.trim();
+    const prepararLectura = (campo, procesar, alEscribir) => {
+        if (!campo) return;
+        let espera;
+        campo.addEventListener('input', () => {
+            clearTimeout(espera);
+            if (alEscribir) alEscribir();
+            const codigo = campo.value.trim();
+            if (!codigo) return;
+            espera = setTimeout(() => {
+                if (campo.value.trim() === codigo) procesar(codigo, false);
+            }, 600);
+        });
+        campo.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== 'Tab') return;
+            const codigo = campo.value.trim();
+            if (!codigo && event.key === 'Tab') return;
+            event.preventDefault();
+            clearTimeout(espera);
+            if (codigo) procesar(codigo, true);
+        });
+        campo.addEventListener('blur', () => clearTimeout(espera));
+    };
+    const protegerEnterTardio = cantidad => {
+        const hasta = Date.now() + 1500;
+        const bloquear = event => {
+            if (Date.now() > hasta || cantidad.value !== '') {
+                cantidad.removeEventListener('keydown', bloquear);
+                return;
+            }
+            if (event.key === 'Enter' || event.key === 'Tab') {
+                event.preventDefault();
+                cantidad.removeEventListener('keydown', bloquear);
+            }
+        };
+        cantidad.addEventListener('keydown', bloquear);
+    };
+    const finalizarLectura = (campo, cantidad, conSufijo) => {
+        campo.value = '';
+        if (!conSufijo) protegerEnterTardio(cantidad);
+        cantidad.focus();
+    };
+    const codigoCompra = document.getElementById('codigo-compra');
+    prepararLectura(codigoCompra, (codigo, conSufijo) => {
         const selectorPlantilla = plantilla.content.querySelector('select');
         const producto = buscarCodigo(selectorPlantilla, codigo);
         const mensaje = document.getElementById('mensaje-codigo-compra');
@@ -428,41 +467,32 @@ foreach ($productos as $producto) {
         selector.dispatchEvent(new Event('change'));
         filtrarMarcas(linea);
         mensaje.textContent = `Producto seleccionado: ${producto.textContent}. Escribe la cantidad recibida.`;
-        event.currentTarget.value = '';
-        linea.querySelector('input[name="cantidad[]"]').focus();
-    });
-    document.getElementById('codigo-merma')?.addEventListener('keydown', event => {
-        if (event.key !== 'Enter') return;
-        event.preventDefault();
-        const formulario = event.currentTarget.form;
+        finalizarLectura(codigoCompra, linea.querySelector('input[name="cantidad[]"]'), conSufijo);
+    }, () => { document.getElementById('mensaje-codigo-compra').textContent = ''; });
+    const prepararLecturaProducto = (idCampo, idMensaje, instruccion) => {
+        const campo = document.getElementById(idCampo);
+        if (!campo) return;
+        const formulario = campo.form;
         const selector = formulario.querySelector('select[name="id_producto"]');
-        const producto = buscarCodigo(selector, event.currentTarget.value.trim());
-        const mensaje = document.getElementById('mensaje-codigo-merma');
-        if (!producto) {
-            mensaje.textContent = 'Código no encontrado. Busca el producto en la lista.';
-            return;
-        }
-        selector.value = producto.value;
-        mensaje.textContent = `Producto seleccionado: ${producto.textContent}. Escribe la cantidad.`;
-        event.currentTarget.value = '';
-        formulario.querySelector('input[name="cantidad"]').focus();
-    });
-    document.getElementById('codigo-caducidad')?.addEventListener('keydown', event => {
-        if (event.key !== 'Enter') return;
-        event.preventDefault();
-        const formulario = event.currentTarget.form;
-        const selector = formulario.querySelector('select[name="id_producto"]');
-        const producto = buscarCodigo(selector, event.currentTarget.value.trim());
-        const mensaje = document.getElementById('mensaje-codigo-caducidad');
-        if (!producto) {
-            mensaje.textContent = 'Código no encontrado. Busca el producto en la lista.';
-            return;
-        }
-        selector.value = producto.value;
-        mensaje.textContent = `Producto seleccionado: ${producto.textContent}. Cuenta la cantidad con la misma fecha.`;
-        event.currentTarget.value = '';
-        formulario.querySelector('input[name="cantidad"]').focus();
-    });
+        const cantidad = formulario.querySelector('input[name="cantidad"]');
+        const mensaje = document.getElementById(idMensaje);
+        prepararLectura(campo, (codigo, conSufijo) => {
+            const producto = buscarCodigo(selector, codigo);
+            if (!producto) {
+                mensaje.textContent = 'Código no encontrado. Busca el producto en la lista.';
+                return;
+            }
+            selector.value = producto.value;
+            mensaje.textContent = `Producto seleccionado: ${producto.textContent}. ${instruccion}`;
+            finalizarLectura(campo, cantidad, conSufijo);
+        }, () => {
+            selector.value = '';
+            cantidad.value = '';
+            mensaje.textContent = '';
+        });
+    };
+    prepararLecturaProducto('codigo-merma', 'mensaje-codigo-merma', 'Escribe la cantidad.');
+    prepararLecturaProducto('codigo-caducidad', 'mensaje-codigo-caducidad', 'Cuenta la cantidad con la misma fecha.');
     document.getElementById('agregar-linea')?.addEventListener('click', agregar);
     if (plantilla) agregar();
 

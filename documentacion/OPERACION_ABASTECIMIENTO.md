@@ -26,8 +26,9 @@ También puedes elegir **Mostrar productos comprados antes a este proveedor**.
 Este filtro usa únicamente compras registradas y no incluye necesariamente
 todos los productos que el proveedor vende; desmárcalo para ver el catálogo
 completo. Seleccionar otro producto propone su propio costo, que debes revisar.
-Escanea el código en el campo correspondiente y pulsa Enter si el lector no lo
-envía; elige la cantidad y revisa el costo propuesto antes de guardar. La merma
+Escanea el código en el campo correspondiente; el producto se selecciona
+automáticamente, incluso si el lector no envía Enter. Después captura la
+cantidad y revisa el costo propuesto antes de guardar. La merma
 también permite seleccionar por código y elegir motivos frecuentes o escribir
 otro. Antes de guardar, confirma el producto y la cantidad que se descontará.
 La operación sólo modifica existencias
