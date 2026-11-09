@@ -69,6 +69,9 @@ En la caja normal, las lecturas consecutivas sin Enter se separan si coinciden
 de forma inequívoca con códigos del catálogo cargado. Si no pueden separarse,
 aparece un aviso y se conserva la lectura para revisarla, sin agregar artículos
 por suposición.
+En la caja normal, el foco automático del lector no solicita el teclado en
+pantalla; toca el buscador cuando necesites escribir. La fila agregada o
+actualizada se resalta brevemente en el carrito.
 
 En la caja de emergencia, un código exacto se agrega con un escaneo, incluso
 si el lector no envía Enter; los productos a granel abren la selección de

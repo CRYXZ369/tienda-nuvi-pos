@@ -18,10 +18,11 @@ function crearCaja() {
     const carrito = [];
     const errores = [];
     class Campo {
-        constructor(valor = '') { this.value = valor; this.selectionStart = valor.length; this.listeners = {}; }
+        constructor(valor = '') { this.value = valor; this.selectionStart = valor.length; this.listeners = {}; this.inputMode = 'none'; }
         addEventListener(tipo, fn) { this.listeners[tipo] = fn; }
         dispatchEvent(evento) { if (this.listeners[evento.type]) this.listeners[evento.type](evento); }
-        focus() {}
+        focus() { contexto.document.activeElement = this; }
+        blur() { contexto.document.activeElement = null; }
         setSelectionRange() {}
         closest(selector) { return selector.includes('#pago-con') && this.protegido; }
     }
@@ -53,6 +54,7 @@ function crearCaja() {
     vm.createContext(contexto);
     vm.runInContext(`
         let timerBusquedaUniversal = null, capturaLectorFisicoGlobal = null, timerCapturaLectorFisico = null;
+        let revisionToqueBuscador = 0;
         let lecturaAnterior = '', lecturaInicioMs = 0, lecturaUltimoTeclaMs = 0, lecturaRapidaActiva = false;
         ${fragmento('            function esCodigoBarras(', '            function esTextoCorto(')}
         ${fragmento('            function reiniciarRitmoLector(', '            function nuviHayModalPosAbierto(')}
@@ -134,5 +136,18 @@ for (const campo of ['input', 'pago']) {
     assert.deepEqual(caja.carrito, [], 'No se adivina una separación ambigua');
     assert.ok(caja.errores.length);
     assert.equal(caja.input.value, '44444444444444444444444444');
+}
+{
+    const caja = crearCaja();
+    caja.input.focus();
+    caja.input.dispatchEvent({ type: 'pointerdown', target: caja.input });
+    assert.equal(caja.input.inputMode, 'text', 'Tocar el buscador debe permitir el teclado');
+    caja.input.focus();
+    caja.digitos(caja.input, codigo);
+    caja.enter(caja.input);
+    assert.equal(caja.input.inputMode, 'none', 'Escanear no debe abrir el teclado');
+    assert.deepEqual(caja.carrito, [codigo]);
+    caja.input.dispatchEvent({ type: 'pointerdown', target: caja.input });
+    assert.equal(caja.input.inputMode, 'text', 'Se puede volver a escribir después de escanear');
 }
 console.log('OK: lecturas consecutivas con y sin sufijo, Bluetooth, cobro y ambigüedad.');

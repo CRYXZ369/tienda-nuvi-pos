@@ -140,6 +140,19 @@
                 box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.24) !important;
             }
 
+            #tabla-carrito tbody tr.producto-reciente > td {
+                background: #dcfce7 !important;
+                color: #052e16 !important;
+                animation: nuvi-producto-reciente 1.1s ease-out;
+            }
+            @keyframes nuvi-producto-reciente {
+                from { box-shadow: inset 0 0 0 3px #16a34a; }
+                to { box-shadow: inset 0 0 0 0 transparent; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                #tabla-carrito tbody tr.producto-reciente > td { animation: none; }
+            }
+
             /* TABLA DEL CARRITO */
             .table-wrapper {
                 overflow-x: auto;
@@ -493,6 +506,11 @@
                 color: #e2e8f0 !important;
             }
 
+            html.nuvi-tema-oscuro .contenedor #tabla-carrito tbody tr.producto-reciente > td {
+                background: #14532d !important;
+                color: #f0fdf4 !important;
+            }
+
             html.nuvi-tema-oscuro .contenedor [style*="color: #065f46"] { color: #86efac !important; }
             html.nuvi-tema-oscuro .contenedor [style*="color: #1d4ed8"] { color: #bfdbfe !important; }
             html.nuvi-tema-oscuro .contenedor [style*="color: #9a3412"] { color: #fdba74 !important; }
@@ -701,6 +719,7 @@
 
             <div style="position: relative; margin-bottom: 20px;">
                 <input type="text" id="inputUniversal"
+                    inputmode="none"
                     placeholder="Escanear código o buscar por Nombre, Marca, Categoría..."
                     style="width: 100%; padding: 15px; border-radius: 10px; border: 2px solid #3b82f6; font-size: 1.1em;"
                     autocomplete="off">
@@ -933,6 +952,8 @@
             let PRODUCTOS_POR_CODIGO = new Map();
             let timerBusquedaUniversal = null;
             let timerConfirmacionLector = null;
+            const timersProductosRecientes = new WeakMap();
+            let revisionToqueBuscador = 0;
             let timerBusquedaGranel = null;
             let html5QrCode;
             let escanerActivo = false;
@@ -1444,6 +1465,22 @@
                 lecturaUltimoTeclaMs = 0;
                 lecturaRapidaActiva = false;
             }
+
+            function nuviEnfocarBuscadorSinTeclado() {
+                if (document.activeElement === DOM.inputUniversal && DOM.inputUniversal.inputMode !== 'none') {
+                    DOM.inputUniversal.blur();
+                }
+                DOM.inputUniversal.inputMode = 'none';
+                DOM.inputUniversal.focus({ preventScroll: true });
+            }
+
+            DOM.inputUniversal.addEventListener('pointerdown', () => {
+                revisionToqueBuscador++;
+                if (DOM.inputUniversal.inputMode === 'none') {
+                    if (document.activeElement === DOM.inputUniversal) DOM.inputUniversal.blur();
+                    DOM.inputUniversal.inputMode = 'text';
+                }
+            });
 
             function nuviHayModalPosAbierto() {
                 return [DOM.modalLibreta, DOM.modalVentasRecientes, DOM.modalEditarVenta].some(modal =>
@@ -2099,6 +2136,17 @@
                 }
             }
 
+            function nuviResaltarProducto(fila) {
+                clearTimeout(timersProductosRecientes.get(fila));
+                fila.classList.remove('producto-reciente');
+                void fila.offsetWidth;
+                fila.classList.add('producto-reciente');
+                timersProductosRecientes.set(fila, setTimeout(() => {
+                    fila.classList.remove('producto-reciente');
+                    timersProductosRecientes.delete(fila);
+                }, 1100));
+            }
+
             function procesarProducto(producto, cantidadManual = 1, subtotalManual = null, opciones = {}) {
                 const esGranel = opciones.origen_granel === true;
                 const lineaGranel = esGranel ? String(opciones.linea_granel || nuviGenerarLineaGranel()) : '';
@@ -2113,6 +2161,7 @@
                     return;
                 }
 
+                let fila = filaExistente;
                 if (filaExistente) {
                     const celdaCant = filaExistente.querySelector(".cantidad-celda");
                     const celdaSub = filaExistente.querySelector(".subtotal-celda");
@@ -2155,8 +2204,10 @@
                         </td>
                     `;
                     DOM.tablaCarritoBody.appendChild(tr);
+                    fila = tr;
                 }
                 actualizarGranTotal();
+                nuviResaltarProducto(fila);
                 if (opciones.confirmar_lector === true) confirmarLecturaLector();
                 return true;
             }
@@ -2177,7 +2228,7 @@
                 if (fila) {
                     fila.remove();
                     actualizarGranTotal();
-                    DOM.inputUniversal.focus();
+                    nuviEnfocarBuscadorSinTeclado();
                 }
             }
 
@@ -2196,6 +2247,7 @@
                 celdaCant.innerText = `${cantidadNueva.toFixed(3)}${fila.dataset.unidad ? ' ' + fila.dataset.unidad : ''}`;
                 celdaSub.innerText = `$${subtotalNuevo.toFixed(2)}`;
                 actualizarGranTotal();
+                nuviResaltarProducto(fila);
             }
 
             function restarProducto(codigo) {
@@ -2236,7 +2288,10 @@
                     // navegadores de tablet devuelven el foco al botón que lo
                     // abrió. Se reintenta un instante después para dejar la
                     // siguiente lectura lista sin tocar ni recargar el POS.
-                    const enfocarBuscador = () => DOM.inputUniversal.focus({ preventScroll: true });
+                    const revision = revisionToqueBuscador;
+                    const enfocarBuscador = () => {
+                        if (revision === revisionToqueBuscador) nuviEnfocarBuscadorSinTeclado();
+                    };
                     requestAnimationFrame(enfocarBuscador);
                     setTimeout(enfocarBuscador, 120);
                     setTimeout(enfocarBuscador, 420);
@@ -3297,7 +3352,7 @@
                     const codigos = nuviSepararCodigosLector(termino);
                     if (!codigos) {
                         DOM.inputUniversal.value = termino;
-                        DOM.inputUniversal.focus();
+                        nuviEnfocarBuscadorSinTeclado();
                         reiniciarRitmoLector();
                         mostrarError('No se pudieron separar las lecturas. Revisa el código y escanea cada producto de nuevo.');
                         return;
@@ -3306,7 +3361,7 @@
                     ocultarSugerencias();
                     reiniciarRitmoLector();
                     codigos.forEach(codigo => procesarProducto(PRODUCTOS_POR_CODIGO.get(codigo), 1, null, { confirmar_lector: confirmarLector }));
-                    DOM.inputUniversal.focus();
+                    nuviEnfocarBuscadorSinTeclado();
                     return;
                 }
 
@@ -3317,7 +3372,7 @@
                     if (productoLocal) {
                         procesarProducto(productoLocal, 1, null, { confirmar_lector: confirmarLector });
                         DOM.inputUniversal.value = '';
-                        DOM.inputUniversal.focus();
+                        nuviEnfocarBuscadorSinTeclado();
                         reiniciarRitmoLector();
                         return;
                     }
@@ -3407,7 +3462,7 @@
                             procesarProducto(productoLocal, 1, null, { confirmar_lector: true });
                             DOM.inputUniversal.value = '';
                             ocultarSugerencias();
-                            DOM.inputUniversal.focus();
+                            nuviEnfocarBuscadorSinTeclado();
                             reiniciarRitmoLector();
                             return;
                         }
@@ -3415,7 +3470,7 @@
                         buscarProducto(valor, true);
                         DOM.inputUniversal.value = '';
                         ocultarSugerencias();
-                        DOM.inputUniversal.focus();
+                        nuviEnfocarBuscadorSinTeclado();
                         reiniciarRitmoLector();
                         return;
                     }
@@ -3426,12 +3481,12 @@
                         procesarProducto(coincidencias[0]);
                         DOM.inputUniversal.value = '';
                         ocultarSugerencias();
-                        DOM.inputUniversal.focus();
+                        nuviEnfocarBuscadorSinTeclado();
                     } else {
                         mostrarError("Producto no encontrado");
                         DOM.inputUniversal.value = '';
                         ocultarSugerencias();
-                        DOM.inputUniversal.focus();
+                        nuviEnfocarBuscadorSinTeclado();
                     }
                 }
             });
@@ -3458,7 +3513,7 @@
                         procesarProducto(p);
                         DOM.inputUniversal.value = '';
                         ocultarSugerencias();
-                        DOM.inputUniversal.focus();
+                        nuviEnfocarBuscadorSinTeclado();
                     });
 
                     DOM.sugerenciasBusqueda.appendChild(fila);
