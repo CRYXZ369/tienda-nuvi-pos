@@ -14,7 +14,7 @@ function crearEntorno() {
     const timers = new Map();
     const seleccionados = [];
     class Campo {
-        constructor() { this.value = ''; this.listeners = {}; }
+        constructor() { this.value = ''; this.listeners = {}; this.type = 'text'; this.name = ''; }
         addEventListener(tipo, fn) { (this.listeners[tipo] ||= []).push(fn); }
         removeEventListener(tipo, fn) { this.listeners[tipo] = (this.listeners[tipo] || []).filter(item => item !== fn); }
         dispatch(tipo, props = {}) {
@@ -23,6 +23,7 @@ function crearEntorno() {
             return evento;
         }
         focus() { activos.campo = this; }
+        closest(selector) { return selector === 'form' ? this.form || null : null; }
     }
     const opciones = [
         { value: '1', dataset: { codigo: '12345678' }, textContent: 'Producto corto' },
@@ -39,8 +40,15 @@ function crearEntorno() {
         const selector = new Campo();
         selector.options = opciones;
         const cantidad = new Campo();
-        formularios[tipo] = { selector, cantidad, querySelector(q) { return q.startsWith('select') ? selector : cantidad; } };
+        cantidad.type = 'number';
+        cantidad.name = 'cantidad';
+        const fecha = tipo === 'caducidad' ? new Campo() : null;
+        if (fecha) { fecha.type = 'date'; fecha.name = 'fecha_caducidad'; }
+        formularios[tipo] = { selector, cantidad, fecha, closest() { return this; },
+            querySelector(q) { return q.startsWith('select') ? selector : (q.includes('fecha_caducidad') ? fecha : cantidad); } };
         campos[`codigo-${tipo}`].form = formularios[tipo];
+        cantidad.form = formularios[tipo];
+        if (fecha) fecha.form = formularios[tipo];
     }
     const lineas = { children: [] };
     const nuevaLinea = () => {
@@ -52,10 +60,14 @@ function crearEntorno() {
         return linea;
     };
     nuevaLinea();
+    const listeners = {};
     const contexto = {
-        document: { getElementById: nombre => campos[nombre] },
+        document: { getElementById: nombre => campos[nombre] || (nombre.startsWith('form-') ? formularios[nombre.slice(5)] : null),
+            addEventListener(tipo, fn) { listeners[tipo] = fn; }, body: new Campo() },
         plantilla: { content: { querySelector: () => ({ options: opciones }) } },
         lineas, agregar: nuevaLinea, filtrarMarcas() {},
+        Element: Campo, HTMLInputElement: Campo, HTMLSelectElement: class {}, HTMLButtonElement: class {},
+        performance: { now: () => tiempo },
         Event: class { constructor(type) { this.type = type; } },
         Date: { now: () => tiempo },
         setTimeout: (fn, ms) => { const key = ++id; timers.set(key, { fn, cuando: tiempo + ms }); return key; },
@@ -80,7 +92,13 @@ function crearEntorno() {
             avanzar(intervalo);
         }
     }
-    return { campos, formularios, lineas, activos, seleccionados, avanzar, escribir };
+    function teclaGlobal(destino, key) {
+        const event = { target: destino, key, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
+        listeners.keydown(event);
+        if (/^\d$/.test(key) && !event.defaultPrevented) destino.value += key;
+        return event;
+    }
+    return { campos, formularios, lineas, activos, seleccionados, avanzar, escribir, teclaGlobal };
 }
 
 for (const tipo of ['compra', 'merma', 'caducidad']) {
@@ -131,6 +149,44 @@ for (const tipo of ['merma', 'caducidad']) {
     e.escribir(campo, '12345678');
     campo.dispatch('blur');
     e.avanzar(600);
-    assert.equal(e.formularios.merma.selector.value, '', 'No cambiar una selección tras abandonar el buscador');
+    assert.equal(e.formularios.merma.selector.value, '1', 'Al salir se procesa el código sin esperar el temporizador');
+    assert.notEqual(e.activos.campo, e.formularios.merma.cantidad, 'El foco no vuelve al formulario al salir');
+}
+for (const sufijo of [null, 'Enter']) {
+    const e = crearEntorno();
+    const cantidad = e.formularios.caducidad.cantidad;
+    cantidad.value = '2';
+    for (const digito of '1234567890123') {
+        e.teclaGlobal(cantidad, digito);
+        e.avanzar(15);
+    }
+    if (sufijo) assert.equal(e.teclaGlobal(cantidad, sufijo).defaultPrevented, true);
+    e.avanzar(650);
+    assert.equal(e.formularios.caducidad.selector.value, '2', 'Escaneo desde cantidad selecciona producto');
+    assert.equal(cantidad.value, '', 'Una nueva caducidad exige volver a capturar la cantidad');
+    assert.match(e.campos['mensaje-codigo-caducidad'].textContent, /Producto seleccionado/);
+}
+{
+    const e = crearEntorno();
+    const cantidad = e.formularios.caducidad.cantidad;
+    for (const digito of '12345678') {
+        e.teclaGlobal(cantidad, digito);
+        e.avanzar(150);
+    }
+    e.avanzar(650);
+    assert.equal(e.formularios.caducidad.selector.value, '', 'No interpretar una cantidad escrita lentamente como lectura');
+    assert.equal(cantidad.value, '12345678');
+}
+{
+    const e = crearEntorno();
+    const fecha = e.formularios.caducidad.fecha;
+    fecha.value = '2026-12-01';
+    for (const digito of '1234567890123') {
+        e.teclaGlobal(fecha, digito);
+        e.avanzar(15);
+    }
+    e.teclaGlobal(fecha, 'Enter');
+    assert.equal(e.formularios.caducidad.selector.value, '2');
+    assert.equal(fecha.value, '', 'Una fecha previa no debe aplicarse accidentalmente a otro producto');
 }
 console.log('OK: escaneo con y sin sufijo en compra, merma y caducidad.');

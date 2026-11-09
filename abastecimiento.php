@@ -413,13 +413,18 @@ foreach ($productos as $producto) {
     const prepararLectura = (campo, procesar, alEscribir) => {
         if (!campo) return;
         let espera;
+        const resolver = (conSufijo, enfocar = true) => {
+            clearTimeout(espera);
+            const codigo = campo.value.trim();
+            if (codigo) procesar(codigo, conSufijo, enfocar);
+        };
         campo.addEventListener('input', () => {
             clearTimeout(espera);
             if (alEscribir) alEscribir();
             const codigo = campo.value.trim();
             if (!codigo) return;
             espera = setTimeout(() => {
-                if (campo.value.trim() === codigo) procesar(codigo, false);
+                if (campo.value.trim() === codigo) resolver(false);
             }, 600);
         });
         campo.addEventListener('keydown', event => {
@@ -427,10 +432,14 @@ foreach ($productos as $producto) {
             const codigo = campo.value.trim();
             if (!codigo && event.key === 'Tab') return;
             event.preventDefault();
-            clearTimeout(espera);
-            if (codigo) procesar(codigo, true);
+            resolver(true);
         });
-        campo.addEventListener('blur', () => clearTimeout(espera));
+        campo.addEventListener('blur', () => resolver(false, false));
+        return (codigo, enfocar = true) => {
+            campo.value = codigo;
+            if (alEscribir) alEscribir();
+            resolver(false, enfocar);
+        };
     };
     const protegerEnterTardio = cantidad => {
         const hasta = Date.now() + 1500;
@@ -446,13 +455,15 @@ foreach ($productos as $producto) {
         };
         cantidad.addEventListener('keydown', bloquear);
     };
-    const finalizarLectura = (campo, cantidad, conSufijo) => {
+    const finalizarLectura = (campo, cantidad, conSufijo, enfocar) => {
         campo.value = '';
-        if (!conSufijo) protegerEnterTardio(cantidad);
-        cantidad.focus();
+        if (enfocar) {
+            if (!conSufijo) protegerEnterTardio(cantidad);
+            cantidad.focus();
+        }
     };
     const codigoCompra = document.getElementById('codigo-compra');
-    prepararLectura(codigoCompra, (codigo, conSufijo) => {
+    const lecturaCompra = prepararLectura(codigoCompra, (codigo, conSufijo, enfocar) => {
         const selectorPlantilla = plantilla.content.querySelector('select');
         const producto = buscarCodigo(selectorPlantilla, codigo);
         const mensaje = document.getElementById('mensaje-codigo-compra');
@@ -467,7 +478,7 @@ foreach ($productos as $producto) {
         selector.dispatchEvent(new Event('change'));
         filtrarMarcas(linea);
         mensaje.textContent = `Producto seleccionado: ${producto.textContent}. Escribe la cantidad recibida.`;
-        finalizarLectura(codigoCompra, linea.querySelector('input[name="cantidad[]"]'), conSufijo);
+        finalizarLectura(codigoCompra, linea.querySelector('input[name="cantidad[]"]'), conSufijo, enfocar);
     }, () => { document.getElementById('mensaje-codigo-compra').textContent = ''; });
     const prepararLecturaProducto = (idCampo, idMensaje, instruccion) => {
         const campo = document.getElementById(idCampo);
@@ -475,8 +486,9 @@ foreach ($productos as $producto) {
         const formulario = campo.form;
         const selector = formulario.querySelector('select[name="id_producto"]');
         const cantidad = formulario.querySelector('input[name="cantidad"]');
+        const fecha = formulario.querySelector('input[name="fecha_caducidad"]');
         const mensaje = document.getElementById(idMensaje);
-        prepararLectura(campo, (codigo, conSufijo) => {
+        return prepararLectura(campo, (codigo, conSufijo, enfocar) => {
             const producto = buscarCodigo(selector, codigo);
             if (!producto) {
                 mensaje.textContent = 'Código no encontrado. Busca el producto en la lista.';
@@ -484,15 +496,93 @@ foreach ($productos as $producto) {
             }
             selector.value = producto.value;
             mensaje.textContent = `Producto seleccionado: ${producto.textContent}. ${instruccion}`;
-            finalizarLectura(campo, cantidad, conSufijo);
+            finalizarLectura(campo, cantidad, conSufijo, enfocar);
         }, () => {
             selector.value = '';
             cantidad.value = '';
+            if (fecha) fecha.value = '';
             mensaje.textContent = '';
         });
     };
-    prepararLecturaProducto('codigo-merma', 'mensaje-codigo-merma', 'Escribe la cantidad.');
-    prepararLecturaProducto('codigo-caducidad', 'mensaje-codigo-caducidad', 'Cuenta la cantidad con la misma fecha.');
+    const lecturaMerma = prepararLecturaProducto('codigo-merma', 'mensaje-codigo-merma', 'Escribe la cantidad.');
+    const lecturaCaducidad = prepararLecturaProducto('codigo-caducidad', 'mensaje-codigo-caducidad', 'Cuenta la cantidad con la misma fecha.');
+    const formulariosLectura = [
+        { formulario: document.getElementById('form-compra'), campo: codigoCompra, leer: lecturaCompra },
+        { formulario: document.getElementById('form-merma'), campo: document.getElementById('codigo-merma'), leer: lecturaMerma },
+        { formulario: document.getElementById('form-caducidad'), campo: document.getElementById('codigo-caducidad'), leer: lecturaCaducidad },
+    ].filter(item => item.formulario && item.campo && item.leer);
+    let seccionActiva = null;
+    let captura = null;
+    let esperaCaptura;
+    const cancelarCaptura = () => {
+        clearTimeout(esperaCaptura);
+        captura = null;
+    };
+    const terminarCaptura = (enfocar = true) => {
+        const actual = captura;
+        cancelarCaptura();
+        if (!actual || actual.codigo.length < 8 || actual.ultima - actual.inicio > 70 * (actual.codigo.length - 1)) return false;
+        if (actual.campo.value.trim() !== '') return false;
+        if (actual.destino instanceof HTMLInputElement || actual.destino instanceof HTMLSelectElement) actual.destino.value = actual.valorInicial;
+        actual.leer(actual.codigo, enfocar);
+        return true;
+    };
+    document.addEventListener('pointerdown', event => {
+        terminarCaptura(false);
+        const elemento = event.target;
+        if (!(elemento instanceof Element)) return;
+        const formulario = elemento.closest('form');
+        const seccion = formulariosLectura.find(item => item.formulario === formulario);
+        if (seccion) seccionActiva = seccion;
+        else if (!formulario) {
+            const tarjeta = elemento.closest('.tarjeta');
+            seccionActiva = formulariosLectura.find(item => item.formulario.closest('.tarjeta') === tarjeta) || null;
+        } else {
+            seccionActiva = null;
+        }
+    });
+    document.addEventListener('keydown', event => {
+        if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
+        const destino = event.target;
+        if (!(destino instanceof Element)) return;
+        const formulario = destino.closest('form');
+        const seccion = formulariosLectura.find(item => item.formulario === formulario)
+            || (!formulario && destino === document.body ? seccionActiva : null);
+        if (!seccion || destino === seccion.campo) {
+            cancelarCaptura();
+            return;
+        }
+        const permiteCaptura = destino === document.body || destino instanceof HTMLButtonElement
+            || (destino instanceof HTMLInputElement && destino.type === 'number'
+                && (destino.name === 'cantidad' || destino.name === 'cantidad[]'))
+            || (destino instanceof HTMLInputElement && destino.type === 'date'
+                && (destino.name === 'fecha_caducidad' || destino.name === 'fecha_caducidad[]'))
+            || (destino instanceof HTMLSelectElement && (destino.name === 'id_producto' || destino.name === 'producto_id[]'));
+        if (!permiteCaptura) {
+            cancelarCaptura();
+            return;
+        }
+        const digito = /^\d$/.test(event.key) ? event.key : '';
+        const ahora = performance.now();
+        if (digito) {
+            if (!captura || captura.destino !== destino || captura.campo !== seccion.campo || ahora - captura.ultima > 320) {
+                cancelarCaptura();
+                captura = { destino, campo: seccion.campo, leer: seccion.leer, codigo: '', inicio: ahora,
+                    ultima: ahora, valorInicial: destino instanceof HTMLInputElement || destino instanceof HTMLSelectElement ? destino.value : '' };
+            }
+            captura.codigo += digito;
+            captura.ultima = ahora;
+            clearTimeout(esperaCaptura);
+            esperaCaptura = setTimeout(() => terminarCaptura(), 600);
+        } else if (event.key === 'Enter' || event.key === 'Tab') {
+            if (terminarCaptura()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        } else {
+            cancelarCaptura();
+        }
+    }, true);
     document.getElementById('agregar-linea')?.addEventListener('click', agregar);
     if (plantilla) agregar();
 

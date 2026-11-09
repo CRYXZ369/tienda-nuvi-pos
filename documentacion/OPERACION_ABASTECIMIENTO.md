@@ -33,6 +33,9 @@ también permite seleccionar por código y elegir motivos frecuentes o escribir
 otro. Antes de guardar, confirma el producto y la cantidad que se descontará.
 La operación sólo modifica existencias
 al guardar el formulario; un código no encontrado no agrega ningún producto.
+Si el foco está en la cantidad o en la fecha de caducidad de ese formulario,
+una lectura rápida también selecciona el producto; al cambiar de producto,
+vuelve a capturar la cantidad y la fecha para evitar aplicar datos anteriores.
 Cada formulario se puede enviar una sola vez. Si se pierde la respuesta o
 aparece que el formulario ya se envió, revisa las compras o mermas recientes
 antes de volver a registrar la operación.
