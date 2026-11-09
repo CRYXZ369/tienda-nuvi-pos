@@ -4,6 +4,7 @@ tienePermiso(['admin', 'supervisor']);
 require_once('conexion.php');
 require_once('operacion_inventario_utils.php');
 require_once('auditoria_utils.php');
+require_once('abastecimiento_form_utils.php');
 
 function volverCompra(string $estado): void
 {
@@ -11,6 +12,9 @@ function volverCompra(string $estado): void
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !nuviConsumirTokenAbastecimiento('compra', $_POST['token_operacion'] ?? null)) {
+    volverCompra('formulario_vencido');
+}
 if (!nuviOperacionInventarioListo($conexion)) {
     volverCompra('estructura_pendiente');
 }

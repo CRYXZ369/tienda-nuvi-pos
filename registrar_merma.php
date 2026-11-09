@@ -4,6 +4,7 @@ tienePermiso(['admin', 'supervisor']);
 require_once('conexion.php');
 require_once('operacion_inventario_utils.php');
 require_once('auditoria_utils.php');
+require_once('abastecimiento_form_utils.php');
 
 function volverMerma(string $estado): void
 {
@@ -11,6 +12,9 @@ function volverMerma(string $estado): void
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !nuviConsumirTokenAbastecimiento('merma', $_POST['token_operacion'] ?? null)) {
+    volverMerma('formulario_vencido');
+}
 if (!nuviOperacionInventarioListo($conexion)) volverMerma('estructura_pendiente');
 
 $idProducto = (int) ($_POST['id_producto'] ?? 0);
@@ -25,7 +29,10 @@ try {
     mysqli_stmt_execute($stmtProducto);
     $producto = mysqli_fetch_assoc(mysqli_stmt_get_result($stmtProducto));
     if (!$producto) throw new Exception('Producto no encontrado.');
-    if ((float) $producto['stock'] + 0.000001 < $cantidad) throw new Exception('La merma no puede ser mayor que el stock actual.');
+    if ((float) $producto['stock'] < $cantidad) {
+        mysqli_rollback($conexion);
+        volverMerma('merma_stock');
+    }
 
     $stmtStock = mysqli_prepare($conexion, 'UPDATE productos SET stock = stock - ? WHERE id = ? AND stock >= ?');
     mysqli_stmt_bind_param($stmtStock, 'did', $cantidad, $idProducto, $cantidad);

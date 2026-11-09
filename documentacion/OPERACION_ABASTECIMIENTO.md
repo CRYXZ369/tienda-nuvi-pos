@@ -22,17 +22,45 @@ productos existentes.
 Para registrar una compra, selecciona el proveedor de la operación. Puedes
 filtrar el listado por la marca o proveedor habitual que figura en inventario:
 esto sólo facilita la búsqueda y no asigna automáticamente proveedores.
+También puedes elegir **Mostrar productos comprados antes a este proveedor**.
+Este filtro usa únicamente compras registradas y no incluye necesariamente
+todos los productos que el proveedor vende; desmárcalo para ver el catálogo
+completo. Seleccionar otro producto propone su propio costo, que debes revisar.
 Escanea el código en el campo correspondiente y pulsa Enter si el lector no lo
 envía; elige la cantidad y revisa el costo propuesto antes de guardar. La merma
-también permite seleccionar por código. La operación sólo modifica existencias
+también permite seleccionar por código y elegir motivos frecuentes o escribir
+otro. Antes de guardar, confirma el producto y la cantidad que se descontará.
+La operación sólo modifica existencias
 al guardar el formulario; un código no encontrado no agrega ningún producto.
+Cada formulario se puede enviar una sola vez. Si se pierde la respuesta o
+aparece que el formulario ya se envió, revisa las compras o mermas recientes
+antes de volver a registrar la operación.
 
 ## Caducidad
 
 Los lotes capturados aparecen durante los 30 días previos a caducar. Las ventas
 nuevas consumen primero los lotes con fecha más próxima. El stock que ya existía
 antes de activar este módulo no recibe una fecha inventada, así que no aparece
-como próximo a caducar hasta que se registre una compra o lote real.
+como próximo a caducar. Es imprescindible seguir revisando físicamente los
+productos sin fecha registrada; una lista vacía no significa que todo esté
+vigente. Al registrar una compra nueva captura la fecha real del producto si
+se conoce. La lista muestra hasta 100 lotes ordenados por fecha.
+
+Para mercancía que ya está en inventario, usa **Anotar fecha de mercancía
+existente**: escanea o busca el producto, cuenta físicamente la cantidad que
+comparte la fecha y escribe esa fecha. No incrementa ni descuenta el stock.
+No vuelvas a capturar unidades que ya tengan fecha; si hay varias fechas,
+registra por separado la cantidad de cada una. Solo se puede asignar fecha al
+stock sin fecha previa. Si los lotes disponibles superan el stock o la cantidad
+solicitada no cabe en el stock sin fecha, el registro se rechaza para revisión.
+La asignación utiliza primero stock sin lote y después lotes sin fecha; no
+identifica físicamente cuál de esos lotes se contó.
+
+La merma descuenta existencias y consume primero los lotes con fecha más
+próxima, pero no permite elegir un lote específico. Si el producto retirado
+pertenece a otro lote, las cantidades por lote podrían no reflejar exactamente
+lo que queda físicamente. No registres una compra ficticia para introducir
+fechas de mercancía ya existente: incrementaría el stock.
 
 ## Utilidad
 
